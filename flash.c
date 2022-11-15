@@ -550,7 +550,11 @@ Status find_active_block(struct ssd_info *ssd, unsigned int channel, unsigned in
     active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
     free_page_num = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num;
     // last_write_page=ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num;
-    while ((free_page_num == 0) && (count < ssd->parameter->block_plane))
+
+    /**
+     * Skip all the blocks which have no free pages, or are key blocks.
+     */
+    while (((free_page_num == 0) && (count < ssd->parameter->block_plane)) || (active_block % ssd->parameter->block_chunk == 0))
     {
         active_block = (active_block + 1) % ssd->parameter->block_plane;
         free_page_num = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[active_block].free_page_num;
