@@ -190,7 +190,7 @@ struct ssd_info
     int active_flag; //记录主动写是否阻塞，如果发现柱塞，需要将时间向前推进,0表示没有阻塞，1表示被阻塞，需要向前推进时间
     unsigned int page;
 
-    unsigned int token;      //在动态分配中，为防止每次分配在第一个channel需要维持一个令牌，每次从令牌所指的位置开始分配
+    unsigned int token;      // In dynamic allocation, in order to prevent each Channel from being assigned to maintain a token, start allocation from the position referred to by the token at each time
     unsigned int gc_request; //记录在SSD中，当前时刻有多少gc操作的请求
 
     unsigned int write_request_count; //记录写操作的次数

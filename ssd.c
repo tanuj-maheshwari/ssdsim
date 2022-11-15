@@ -375,10 +375,10 @@ struct ssd_info *simulate(struct ssd_info *ssd)
  *	return	0: reach the end of the trace
  *			-1: no request has been added
  *			1: add one request to list
- *SSD模拟器有三种驱动方式:时钟驱动(精确，太慢) 事件驱动(本程序采用) trace驱动()，
- *两种方式推进事件：channel/chip状态改变、trace文件请求达到。
- *channel/chip状态改变和trace文件请求到达是散布在时间轴上的点，每次从当前状态到达
- *下一个状态都要到达最近的一个状态，每到达一个点执行一次process
+ * The SSD simulator has three driving modes: clock-driven (accurate, too slow) event-driven (this program uses) trace-driven (),
+ * Two ways to advance events: channel/chip state change, trace file request arrival.
+ * channel/chip state changes and trace file request arrivals are points scattered on the timeline, each time arriving from the current state
+ * The next state must reach the nearest state, and execute a process every time it reaches a point
  ********************************************************************************/
 int get_requests(struct ssd_info *ssd)
 {

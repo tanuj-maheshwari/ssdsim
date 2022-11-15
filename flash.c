@@ -39,6 +39,7 @@ Status allocate_location(struct ssd_info *ssd, struct sub_request *sub_req)
          * In dynamic allocation, because the page update operation cannot use the copyback operation,
          * A read request needs to be generated, and the page can be written only after the read request is completed
          *******************************************************************/
+        // Catering to the update requests
         if (ssd->dram->map->map_entry[sub_req->lpn].state != 0)
         {
             if ((sub_req->state & ssd->dram->map->map_entry[sub_req->lpn].state) != ssd->dram->map->map_entry[sub_req->lpn].state)
@@ -208,6 +209,8 @@ Status allocate_location(struct ssd_info *ssd, struct sub_request *sub_req)
         default:
             return ERROR;
         }
+
+        // Catering to the update requests
         if (ssd->dram->map->map_entry[sub_req->lpn].state != 0)
         { /*这个写回的子请求的逻辑页不可以覆盖之前被写回的数据 需要产生读请求*/
             if ((sub_req->state & ssd->dram->map->map_entry[sub_req->lpn].state) != ssd->dram->map->map_entry[sub_req->lpn].state)
@@ -535,8 +538,8 @@ struct ssd_info *insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state
 }
 
 /**************************************************************************************
- *函数的功能是寻找活跃快，应为每个plane中都只有一个活跃块，只有这个活跃块中才能进行操作
- *The function of the function is to find the active fast, there should be only one active block in each plane, and only this active block can be operated.
+ * 函数的功能是寻找活跃快，应为每个plane中都只有一个活跃块，只有这个活跃块中才能进行操作
+ * The function of the function is to find the active fast, there should be only one active block in each plane, and only this active block can be operated.
  ***************************************************************************************/
 Status find_active_block(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane)
 {
@@ -805,6 +808,9 @@ struct sub_request *find_read_sub_request(struct ssd_info *ssd, unsigned int cha
  *函数的功能是寻找写子请求。
  *分两种情况1，要是是完全动态分配就在ssd->subs_w_head队列上找
  *2，要是不是完全动态分配那么就在ssd->channel_head[channel].subs_w_head队列上查找
+ * The function of the function is to look for write subrequests. There are two cases
+ * 1, if it is completely dynamic allocation, it will be found on the ssd->subs_w_head queue
+ * 2, if it is not fully dynamically allocated, then look it up on the ssd->channel_head[channel].subs_w_head queue
  ********************************************************************************/
 struct sub_request *find_write_sub_request(struct ssd_info *ssd, unsigned int channel)
 {
@@ -927,13 +933,22 @@ Status services_2_r_cmd_trans_and_complete(struct ssd_info *ssd)
         sub = ssd->channel_head[i].subs_r_head;
         while (sub != NULL)
         {
-            if (sub->current_state == SR_R_C_A_TRANSFER) /*读命令发送完毕，将对应的die置为busy，同时修改sub的状态; 这个部分专门处理读请求由当前状态为传命令变为die开始busy，die开始busy不需要channel为空，所以单独列出*/
+            /*读命令发送完毕，将对应的die置为busy，同时修改sub的状态; 这个部分专门处理读请求由当前状态为传命令变为die开始busy，die开始busy不需要channel为空，所以单独列出*/
+            /**
+             * After the read command is sent, set the corresponding die to busy,
+             * and modify the state of the sub at the same time;
+             * this part is dedicated to processing the read request from the current state
+             * of the command to the die start busy, and the die start busy does not need
+             * the channel to be empty, so it is listed separately
+             */
+            if (sub->current_state == SR_R_C_A_TRANSFER)
             {
                 if (sub->next_state_predict_time <= ssd->current_time)
                 {
                     go_one_step(ssd, sub, NULL, SR_R_READ, NORMAL); /*状态跳变处理函数*/
                 }
             }
+
             else if ((sub->current_state == SR_COMPLETE) || ((sub->next_state == SR_COMPLETE) && (sub->next_state_predict_time <= ssd->current_time)))
             {
                 if (sub != ssd->channel_head[i].subs_r_head) /*if the request is completed, we delete it from read queue */
@@ -962,8 +977,10 @@ Status services_2_r_cmd_trans_and_complete(struct ssd_info *ssd)
 }
 
 /**************************************************************************
- *这个函数也是只处理读子请求，处理chip当前状态是CHIP_WAIT，
- *或者下一个状态是CHIP_DATA_TRANSFER并且下一状态的预计时间小于当前时间的chip
+ * 这个函数也是只处理读子请求，处理chip当前状态是CHIP_WAIT，
+ * 或者下一个状态是CHIP_DATA_TRANSFER并且下一状态的预计时间小于当前时间的chip
+ * This function also only handles read sub-requests, and the current state of the processing chip is CHIP_WAIT.
+ * or chip where the next state is CHIP_DATA_TRANSFER and the expected time for the next state is less than the current time
  ***************************************************************************/
 Status services_2_r_data_trans(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag)
 {
@@ -1234,7 +1251,8 @@ int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_
 }
 
 /*
- *函数的功能就是执行copyback命令的功能，
+ * 函数的功能就是执行copyback命令的功能，
+ * The function of the function is to execute the function of the copyback command,
  */
 Status copy_back(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, struct sub_request *sub)
 {
@@ -1413,7 +1431,7 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
                     break;
                 }
 
-                chip_token = ssd->channel_head[channel].token; /*令牌*/
+                chip_token = ssd->channel_head[channel].token; /*令牌 | token*/
                 if (*channel_busy_flag == 0)
                 {
                     if ((ssd->channel_head[channel].chip_head[chip_token].current_state == CHIP_IDLE) || ((ssd->channel_head[channel].chip_head[chip_token].next_state == CHIP_IDLE) && (ssd->channel_head[channel].chip_head[chip_token].next_state_predict_time <= ssd->current_time)))
@@ -2524,6 +2542,9 @@ Status make_level_page(struct ssd_info *ssd, struct sub_request *sub0, struct su
  *函数的功能是为two plane命令寻找出两个相同水平位置的页，并且修改统计值，修改页的状态
  *注意这个函数与上一个函数make_level_page函数的区别，make_level_page这个函数是让sub1与sub0的page位置相同
  *而find_level_page函数的作用是在给定的channel，chip，die中找两个位置相同的subA和subB。
+ * The function of the function is to find two pages with the same horizontal position for the two plane command, and modify the statistical value and modify the status of the page
+ * Note the difference between this function and the previous function make_level_page function, the make_level_page function is to make the page position of sub1 and sub0 the same
+ * The function of find_level_page is to find two subA and subB with the same position in a given channel, chip and die.
  *******************************************************************************************************/
 Status find_level_page(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, struct sub_request *subA, struct sub_request *subB)
 {
@@ -2846,6 +2867,7 @@ Status find_level_page(struct ssd_info *ssd, unsigned int channel, unsigned int 
 
 /*
  *函数的功能是修改找到的page页的状态以及相应的dram中映射表的值
+ * The function of the function is to modify the state of the found page and the value of the mapping table in the corresponding dram
  */
 struct ssd_info *flash_page_state_modify(struct ssd_info *ssd, struct sub_request *sub, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block, unsigned int page)
 {
@@ -2926,6 +2948,7 @@ struct ssd_info *flash_page_state_modify(struct ssd_info *ssd, struct sub_reques
 
 /********************************************
  *函数的功能就是让两个位置不同的page位置相同
+ * The function of the function is to make two pages with different positions have the same position
  *********************************************/
 struct ssd_info *make_same_level(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block, unsigned int aim_page)
 {

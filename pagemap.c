@@ -325,9 +325,9 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn)
     plane_num = ssd->parameter->plane_die;
     lpn = lsn / ssd->parameter->subpage_page;
 
-    if (ssd->parameter->allocation_scheme == 0) /*动态方式下获取ppn*/
+    if (ssd->parameter->allocation_scheme == 0) /*Get PPN under dynamic methods*/
     {
-        if (ssd->parameter->dynamic_allocation == 0) /*表示全动态方式下，也就是channel，chip，die，plane，block等都是动态分配*/
+        if (ssd->parameter->dynamic_allocation == 0) /*Indicates that under the full dynamic method, that is, Channel, Chip, DIE, PLANE, BLOCK, etc. are all dynamic allocationhannel, chip, die, plane, block, etc. are all dynamically allocated*/
         {
             channel = ssd->token;
             ssd->token = (ssd->token + 1) % ssd->parameter->channel_number;
@@ -338,7 +338,7 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn)
             plane = ssd->channel_head[channel].chip_head[chip].die_head[die].token;
             ssd->channel_head[channel].chip_head[chip].die_head[die].token = (plane + 1) % ssd->parameter->plane_die;
         }
-        else if (ssd->parameter->dynamic_allocation == 1) /*表示半动态方式，channel静态给出，package，die，plane动态分配*/
+        else if (ssd->parameter->dynamic_allocation == 1) /*Indicates semi-dynamic mode, channel is given statically, package, die, plane are dynamically allocated*/
         {
             channel = lpn % ssd->parameter->channel_number;
             chip = ssd->channel_head[channel].token;
@@ -349,7 +349,7 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn)
             ssd->channel_head[channel].chip_head[chip].die_head[die].token = (plane + 1) % ssd->parameter->plane_die;
         }
     }
-    else if (ssd->parameter->allocation_scheme == 1) /*表示静态分配，同时也有0,1,2,3,4,5这6中不同静态分配方式*/
+    else if (ssd->parameter->allocation_scheme == 1) /*Indicates static allocation, and there are 6 different static allocation methods of 0, 1, 2, 3, 4, and 5*/
     {
         switch (ssd->parameter->static_allocation)
         {
