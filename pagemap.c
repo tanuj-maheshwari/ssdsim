@@ -197,8 +197,21 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
 
     full_page = ~(0xffffffff << (ssd->parameter->subpage_page));
     printf("full page %d %d \n", full_page, ssd->parameter->subpage_page);
+
     /*计算出这个ssd的最大逻辑扇区号 | Calculate the maximum logical sector number of this ssd*/
-    largest_lsn = (unsigned int)((ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page) * (1 - ssd->parameter->overprovide));
+    unsigned int num_total_subpages_without_overprovide = (unsigned int)(ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page);
+    unsigned int num_total_subpages = (unsigned int)(num_total_subpages_without_overprovide * (1 - ssd->parameter->overprovide));
+    unsigned int num_subpages_except_key_blocks = (unsigned int)(num_total_subpages * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
+    /**
+     * safety - number of total subpages considering each plane has only one block
+     * In other words, one block in each plane is left empty, as a safety measure
+     */
+    // unsigned int num_blocks_per_plane = ssd->parameter->block_plane;
+    // unsigned int safety = (unsigned int)(num_total_subpages / num_blocks_per_plane);
+    unsigned int safety = 0;
+    unsigned int num_safe_subpages = num_subpages_except_key_blocks - safety;
+
+    largest_lsn = num_safe_subpages - (num_safe_subpages % ssd->parameter->subpage_page);
     printf("largest lsn : %d\n", largest_lsn);
 
     while (fgets(buffer_request, 200, ssd->tracefile))
