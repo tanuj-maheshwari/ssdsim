@@ -75,6 +75,12 @@ struct ssd_info *initiation(struct ssd_info *ssd)
 
     //导入ssd的配置文件 | Import SSD configuration file
     parameters = load_parameters(ssd->parameterfilename);
+    if (parameters == NULL)
+    {
+        printf("load parameters error\n");
+        return NULL;
+    }
+
     ssd->parameter = parameters;
     ssd->min_lsn = 0x7fffffff; // 0b1111111111111111111111111111111 (32 bit, all 1)
     ssd->page = ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block;
@@ -734,6 +740,15 @@ struct parameter_value *load_parameters(char parameter_file[30])
 
         memset(buf, 0, BUFSIZE);
     }
+
+    // Check if number of chunks is valid (i.e. number of blocks is a multiple of chunk size)
+    if (p->block_plane % p->block_chunk != 0)
+    {
+        printf("block_plane should be a multiple of block_chunk\n");
+        free(p);
+        p = NULL;
+    }
+
     fclose(fp);
     //    fclose(fp1);
     //    fclose(fp2);

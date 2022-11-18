@@ -59,6 +59,11 @@ void simulate_ssd(struct user_args *uargs)
     printf("finish initialize ssd\n");
 
     ssd = initiation(ssd);
+    if (!ssd)
+    {
+        printf("initiation error\n");
+        return;
+    }
     printf("finish ssd initiation (prepare inner structure)\n");
 
     ssd = make_aged(ssd);
