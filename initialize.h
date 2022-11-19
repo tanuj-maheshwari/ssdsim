@@ -465,6 +465,8 @@ struct parameter_value
     unsigned int page_block;
     unsigned int subpage_page;
 
+    unsigned int block_chunk; // How many blocks are there in a chunk. Note that this is not used for addressing purposes. Addressing is done using the plane_block model only.
+
     unsigned int page_capacity;
     unsigned int subpage_capacity;
 
