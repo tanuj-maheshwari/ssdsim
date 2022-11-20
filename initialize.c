@@ -242,8 +242,8 @@ struct plane_info *initialize_plane(struct plane_info *p_plane, struct parameter
 {
     unsigned int i;
     struct blk_info *p_block;
-    p_plane->add_reg_ppn = -1;                                                                                                       // The additional register; additional register = -1 in the plane means no data
-    p_plane->free_page = (parameter->block_plane * parameter->page_block * (parameter->block_chunk - 1)) / (parameter->block_chunk); // The number of free pages in the plane
+    p_plane->add_reg_ppn = -1;                                                                                                                // The additional register; additional register = -1 in the plane means no data
+    p_plane->free_page = ((int64_t)parameter->block_plane * parameter->page_block * (parameter->block_chunk - 1)) / (parameter->block_chunk); // The number of free pages in the plane
 
     p_plane->blk_head = (struct blk_info *)malloc(parameter->block_plane * sizeof(struct blk_info));
     alloc_assert(p_plane->blk_head, "p_plane->blk_head");

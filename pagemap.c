@@ -199,9 +199,9 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
     printf("full page %d %d \n", full_page, ssd->parameter->subpage_page);
 
     /*计算出这个ssd的最大逻辑扇区号 | Calculate the maximum logical sector number of this ssd*/
-    unsigned int num_total_subpages_without_overprovide = (unsigned int)(ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page);
+    unsigned int num_total_subpages_without_overprovide = (unsigned int)(ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
     unsigned int num_total_subpages = (unsigned int)(num_total_subpages_without_overprovide * (1 - ssd->parameter->overprovide));
-    unsigned int num_subpages_except_key_blocks = (unsigned int)(num_total_subpages * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
+    // unsigned int num_subpages_except_key_blocks = (unsigned int)(num_total_subpages * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
     /**
      * safety - number of total subpages considering each plane has only one block
      * In other words, one block in each plane is left empty, as a safety measure
@@ -209,7 +209,7 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
     // unsigned int num_blocks_per_plane = ssd->parameter->block_plane;
     // unsigned int safety = (unsigned int)(num_total_subpages / num_blocks_per_plane);
     unsigned int safety = 0;
-    unsigned int num_safe_subpages = num_subpages_except_key_blocks - safety;
+    unsigned int num_safe_subpages = num_total_subpages - safety;
 
     largest_lsn = num_safe_subpages - (num_safe_subpages % ssd->parameter->subpage_page);
     printf("largest lsn : %d\n", largest_lsn);
@@ -572,7 +572,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 
     if (ssd->parameter->active_write == 0) /*如果没有主动策略，只采用gc_hard_threshold，并且无法中断GC过程 | If there is no active policy, only gc_hard_threshold is used, and the GC process cannot be interrupted.*/
     {                                      /*如果plane中的free_page的数目少于gc_hard_threshold所设定的阈值就产生gc操作 | If the number of free_pages in the plane is less than the threshold set by gc_hard_threshold, a gc operation will be generated.*/
-        if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
+        if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
         {
             // check whether gc process already initialized for this plane
             is_gc_inited = 1;
@@ -604,7 +604,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
                 gc_node->priority = GC_UNINTERRUPT;
                 gc_node->next_node = ssd->channel_head[channel].gc_command;
                 gc_node->x_init_time = ssd->channel_head[channel].current_time;
-                gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)((ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
+                gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)(((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
                 gc_node->x_moved_pages = 0;
 
                 ssd->channel_head[channel].gc_command = gc_node;

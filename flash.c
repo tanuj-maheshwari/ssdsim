@@ -2795,7 +2795,7 @@ Status find_level_page(struct ssd_info *ssd, unsigned int channel, unsigned int 
         }
     }
 
-    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeA].free_page < ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeA].free_page < (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
     {
         gc_node = ssd->channel_head[channel].gc_command;
         is_gc_inited = 0;
@@ -2824,14 +2824,14 @@ Status find_level_page(struct ssd_info *ssd, unsigned int channel, unsigned int 
             gc_node->state = GC_WAIT;
             gc_node->priority = GC_UNINTERRUPT;
             gc_node->next_node = ssd->channel_head[channel].gc_command;
-            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeA].free_page / (double)((ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
+            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeA].free_page / (double)(((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
             gc_node->x_init_time = ssd->channel_head[channel].current_time;
             gc_node->x_moved_pages = 0;
             ssd->channel_head[channel].gc_command = gc_node;
             ssd->gc_request++;
         }
     }
-    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeB].free_page < ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeB].free_page < (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
     {
         gc_node = ssd->channel_head[channel].gc_command;
         is_gc_inited = 0;
@@ -2860,7 +2860,7 @@ Status find_level_page(struct ssd_info *ssd, unsigned int channel, unsigned int 
             gc_node->state = GC_WAIT;
             gc_node->priority = GC_UNINTERRUPT;
             gc_node->next_node = ssd->channel_head[channel].gc_command;
-            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeB].free_page / (double)((ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
+            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[planeB].free_page / (double)(((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
             gc_node->x_init_time = ssd->channel_head[channel].current_time;
             gc_node->x_moved_pages = 0;
             ssd->channel_head[channel].gc_command = gc_node;

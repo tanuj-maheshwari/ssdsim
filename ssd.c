@@ -1070,7 +1070,7 @@ float get_crt_free_page_prct(struct ssd_info *ssd)
     page_total = free_page = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        page_total += ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
+        page_total += (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
@@ -1089,7 +1089,7 @@ float get_crt_nonempty_free_page_prct(struct ssd_info *ssd)
     page_total = free_page = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        page_total += ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
+        page_total += (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
@@ -1110,7 +1110,7 @@ float get_crt_nonempty_free_block_prct(struct ssd_info *ssd)
     blk_total = free_blk = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        blk_total += ((ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
+        blk_total += (((int64_t)ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
@@ -1697,7 +1697,7 @@ struct ssd_info *init_gc(struct ssd_info *ssd)
     int64_t gc_start_time = 0;
 
     // Don't check when #free-page > threshold
-    threshold = (ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num * (1 - ssd->parameter->overprovide) * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk;
+    threshold = ((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num * (1 - ssd->parameter->overprovide) * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk;
     free_page = 0;
     for (channel = 0; channel < ssd->parameter->channel_number; channel++)
     {
