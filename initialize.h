@@ -325,6 +325,7 @@ struct plane_info
 
 struct blk_info
 {
+    unsigned int is_key_block;     // Indicates whether it is a key block
     unsigned int erase_count;      // The number of erasures of the block, this item is recorded in ram and used for GC
     unsigned int free_page_num;    // Record the number of free pages in the block, same as above
     unsigned int invalid_page_num; // Record the number of invalid pages in the block, same as above
