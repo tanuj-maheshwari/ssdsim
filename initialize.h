@@ -284,17 +284,17 @@ struct channel_info
 
 struct chip_info
 {
-    unsigned int die_num;          //表示一个颗粒中有多少个die
+    unsigned int die_num;          // Indicates how many die are in a particle
     unsigned int plane_num_die;    // indicate how many planes in a die
     unsigned int block_num_plane;  // indicate how many blocks in a plane
     unsigned int page_num_block;   // indicate how many pages in a block
     unsigned int subpage_num_page; // indicate how many subpage in a page
-    unsigned int ers_limit;        //该chip中每块能够被擦除的次数
-    unsigned int token;            //在动态分配中，为防止每次分配在第一个die需要维持一个令牌，每次从令牌所指的位置开始分配
+    unsigned int ers_limit;        // The number of times each block in the chip can be erased
+    unsigned int token;            // In dynamic allocation, in order to prevent the need to maintain a token in the first die for each allocation, each allocation starts from the position pointed by the token
 
     int current_state; // channel has serveral states, including idle, command/address transfer,data transfer,unknown
     int next_state;
-    int64_t current_time;            //记录该通道的当前时间
+    int64_t current_time;            // record the current time of the channel
     int64_t next_state_predict_time; // the predict time of next state, used to decide the sate at the moment
 
     unsigned long read_count; // how many read count in the process of workload
@@ -308,18 +308,18 @@ struct chip_info
 struct die_info
 {
 
-    unsigned int token; //在动态分配中，为防止每次分配在第一个plane需要维持一个令牌，每次从令牌所指的位置开始分配
+    unsigned int token; // In dynamic allocation, in order to prevent the need to maintain a token in the first plane for each allocation, the allocation starts from the position pointed to by the token each time
     struct plane_info *plane_head;
 };
 
 struct plane_info
 {
-    int add_reg_ppn;                 // read，write时把地址传送到该变量，该变量代表地址寄存器。die由busy变为idle时，清除地址 //有可能因为一对多的映射，在一个读请求时，有多个相同的lpn，所以需要用ppn来区分
-    unsigned int free_page;          //该plane中有多少free page
-    unsigned int ers_invalid;        //记录该plane中擦除失效的块数
-    unsigned int active_block;       // if a die has a active block, 该项表示其物理块号
-    int can_erase_block;             //记录在一个plane中准备在gc操作中被擦除操作的块,-1表示还没有找到合适的块
-    struct direct_erase *erase_node; //用来记录可以直接删除的块号,在获取新的ppn时，每当出现invalid_page_num==64时，将其添加到这个指针上，供GC操作时直接删除
+    int add_reg_ppn;                 // When reading and writing, the address is transferred to this variable, which represents the address register. When die changes from busy to idle, clear the address //It is possible that because of one-to-many mapping, there are multiple identical lpn in a read request, so ppn is needed to distinguish
+    unsigned int free_page;          // How many free pages are in the plane
+    unsigned int ers_invalid;        // Record the number of blocks erased and invalidated in this plane
+    unsigned int active_block;       // if a die has a active block, this item represents its physical block number
+    int can_erase_block;             // Record the block that is ready to be erased in the gc operation in a plane, and -1 means that no suitable block has been found
+    struct direct_erase *erase_node; // It is used to record the block number that can be deleted directly. When obtaining a new ppn, whenever invalid_page_num==64 appears, add it to this pointer and delete it directly for GC operation
     struct blk_info *blk_head;
 };
 
@@ -333,11 +333,11 @@ struct blk_info
 };
 
 struct page_info
-{                    // lpn记录该物理页存储的逻辑页，当该逻辑页有效时，valid_state大于0，free_state大于0；
+{                    // lpn records the logical page stored in the physical page. When the logical page is valid, valid_state is greater than 0, and free_state is greater than 0;
     int valid_state; // indicate the page is valid or invalid
     int free_state;  // each bit indicates the subpage is free or occupted. 1 indicates that the bit is free and 0 indicates that the bit is used
     unsigned int lpn;
-    unsigned int written_count; //记录该页被写的次数
+    unsigned int written_count; // Record the number of times the page was written
 };
 
 struct dram_info
@@ -444,8 +444,8 @@ struct sub_request
  ************************************************************************/
 struct event_node
 {
-    int type;             //记录该事件的类型，1表示命令类型，2表示数据传输类型
-    int64_t predict_time; //记录这个时间开始的预计时间，防止提前执行这个时间
+    int type;             // Record the type of the event, 1 indicates the command type, 2 indicates the data transmission type
+    int64_t predict_time; // Record the estimated time of the start of this time to prevent the execution of this time in advance
     struct event_node *next_node;
     struct event_node *pre_node;
 };
