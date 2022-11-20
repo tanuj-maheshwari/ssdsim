@@ -500,8 +500,8 @@ struct parameter_value
     int pipelining;
     int threshold_fixed_adjust;
     int threshold_value;
-    int active_write;        //表示是否执行主动写操作1,yes;0,no
-    float gc_hard_threshold; //普通策略中用不到该参数，只有在主动写策略中，当满足这个阈值时，GC操作不可中断
+    int active_write;        // Indicates whether to perform active write operation 1, yes; 0, no
+    float gc_hard_threshold; // This parameter is not used in ordinary strategies, only in active write strategies, when this threshold is met, GC operations cannot be interrupted
     int allocation_scheme;   // The choice of record distribution method, 0 indicates dynamic allocation, 1 indicates static allocation
     int static_allocation;   // The record is that kind of static allocation, as all static allocations described in the ICS09 article
     int dynamic_allocation;  // How to record dynamic allocation

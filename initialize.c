@@ -253,7 +253,7 @@ struct plane_info *initialize_plane(struct plane_info *p_plane, struct parameter
     {
         p_block = &(p_plane->blk_head[i]);
         initialize_block(p_block, parameter);
-        p_block->is_key_block = 1 ? i % parameter->block_chunk == 0 : 0;
+        p_block->is_key_block = i % parameter->block_chunk == 0 ? 1 : 0;
     }
     return p_plane;
 }
