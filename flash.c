@@ -650,6 +650,7 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
         p_ch = &ssd->channel_head[loc->channel];
         sub->ppn = ssd->dram->map->map_entry[lpn].pn;
         sub->operation = READ;
+        sub->key_generated_flag = 0; // Keys are never generated for read requests
         sub->state = (ssd->dram->map->map_entry[lpn].state & 0x7fffffff);
         sub_r = p_ch->subs_r_head; /*The following lines include a flag to determine whether there is a sub-request that is the same as this sub-request in the read sub-request queue, and if so, assign the new sub-request as complete*/
         flag = 0;
@@ -692,6 +693,7 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
     {
         sub->ppn = 0;
         sub->operation = WRITE;
+        sub->key_generated_flag = 0; // Keys are generated only when the write actually happens
         sub->location = (struct local *)malloc(sizeof(struct local));
         alloc_assert(sub->location, "sub->location");
         memset(sub->location, 0, sizeof(struct local));
@@ -1360,7 +1362,7 @@ Status copy_back(struct ssd_info *ssd, unsigned int channel, unsigned int chip, 
 }
 
 /*****************
- *静态写操作的实现
+ * Implementation of static write operations
  ******************/
 Status static_write(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, struct sub_request *sub)
 {
@@ -1461,6 +1463,8 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
 
                                 get_ppn(ssd, channel, chip_token, die_token, plane_token, sub);
 
+                                adjust_key_page_for_w_subreq(ssd, sub);
+
                                 ssd->channel_head[channel].chip_head[chip_token].die_head[die_token].token = (ssd->channel_head[channel].chip_head[chip_token].die_head[die_token].token + 1) % ssd->parameter->plane_die;
 
                                 *change_current_time_flag = 0;
@@ -1469,8 +1473,8 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
                                 {
                                     ssd->real_time_subreq--;
                                 }
-                                go_one_step(ssd, sub, NULL, SR_W_TRANSFER, NORMAL); /*执行普通的状态的转变。*/
-                                delete_w_sub_request(ssd, channel, sub);            /*删掉处理完后的写子请求*/
+                                go_one_step(ssd, sub, NULL, SR_W_TRANSFER, NORMAL); /*Perform ordinary state transitions.*/
+                                delete_w_sub_request(ssd, channel, sub);            /*Delete the write subrequest after processing*/
 
                                 *channel_busy_flag = 1;
                                 /**************************************************************************
@@ -1548,12 +1552,12 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
 
                                     if ((ssd->parameter->advanced_commands & AD_COPYBACK) == AD_COPYBACK)
                                     {
-                                        copy_back(ssd, channel, chip, die, sub); /*如果可以执行copyback高级命令，那么就用函数copy_back(ssd, channel,chip, die,sub)处理写子请求*/
+                                        copy_back(ssd, channel, chip, die, sub); /*If the copyback advanced command can be executed, then use the function copy_back(ssd, channel, chip, die, sub) to process the write subrequest*/
                                         *change_current_time_flag = 0;
                                     }
                                     else
                                     {
-                                        static_write(ssd, channel, chip, die, sub); /*不能执行copyback高级命令，那么就用static_write(ssd, channel,chip, die,sub)函数来处理写子请求*/
+                                        static_write(ssd, channel, chip, die, sub); /*If the copyback advanced command cannot be executed, then the static_write(ssd, channel, chip, die, sub) function is used to process the write subrequest*/
                                         *change_current_time_flag = 0;
                                     }
 
@@ -1663,7 +1667,7 @@ struct ssd_info *process(struct ssd_info *ssd)
     {
         i = (random_num + chan) % ssd->parameter->channel_number;
         flag = 0;
-        flag_gc = 0; /*每次进入channel时，将gc的标志位置为0，默认认为没有进行gc操作*/
+        flag_gc = 0; /*Every time you enter the channel, set the gc flag position to 0, and the default is that there is no gc operation*/
         if ((ssd->channel_head[i].current_state == CHANNEL_IDLE) || (ssd->channel_head[i].next_state == CHANNEL_IDLE && ssd->channel_head[i].next_state_predict_time <= ssd->current_time))
         {
             if (ssd->gc_request > 0) /*有gc操作，需要进行一定的判断 | Have gc operation, need to make certain judgment*/
@@ -3563,6 +3567,8 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
     /***************************************************************************************************
      *处理普通命令时，读子请求的目标状态分为以下几种情况SR_R_READ，SR_R_C_A_TRANSFER，SR_R_DATA_TRANSFER
      *写子请求的目标状态只有SR_W_TRANSFER
+     *When processing ordinary commands, the target state of the read subrequest is divided into the following situations: SR_R_READ, SR_R_C_A_TRANSFER, SR_R_DATA_TRANSFER
+     *The target state of the write subrequest is only SR_W_TRANSFER
      ****************************************************************************************************/
     if (command == NORMAL)
     {
@@ -3652,6 +3658,11 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
              *这样就可以把几个状态当一个状态来处理，就当成SR_W_TRANSFER这个状态来处理，sub的下一个状态就是完成状态了
              *此时channel，chip的当前状态变为CHANNEL_TRANSFER，CHIP_WRITE_BUSY
              *下一个状态变为CHANNEL_IDLE，CHIP_IDLE
+             * This is the calculation of state transition and time when processing write sub-requests
+             * Although the processing status of the write sub-request is as much as that of the read sub-request, the write request is to transfer data from the top to the plane
+             * In this way, several states can be treated as one state, which is treated as the state of SR_W_TRANSFER, and the next state of the sub is the completed state
+             * At this time, the current state of the channel and chip changes to CHANNEL_TRANSFER, CHIP_WRITE_BUSY
+             * The next state becomes CHANNEL_IDLE, CHIP_IDLE
              *******************************************************************************************************/
             sub->current_time = ssd->current_time;
             sub->current_state = SR_W_TRANSFER;

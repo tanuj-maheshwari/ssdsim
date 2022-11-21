@@ -360,7 +360,7 @@ struct ssd_info *simulate(struct ssd_info *ssd)
         }
 
         // FTL+FCL+Flash layer
-        process(ssd);
+        process(ssd); /// PROBLEM HERE
         trace_output(ssd);
         init_gc(ssd);
 
@@ -1354,6 +1354,11 @@ int64_t find_nearest_event(struct ssd_info *ssd)
      *		     C.下一状态为CHIP_DATA_TRANSFER且下一状态预计时间大于ssd当前时间的DIE的下一状态预计时间
      *CHIP_DATA_TRANSFER读准备好状态，数据已从介质传到了register，下一状态是从register传往buffer中的最小值
      *注意可能都没有满足要求的time，这时time返回0x7fffffffffffffff 。
+     * time is all A. The estimated time of the next state of CHANNEL whose next state is CHANNEL_IDLE and the estimated time of the next state is greater than the current time of ssd
+     *  B. The estimated time of the next state of DIE whose next state is CHIP_IDLE and the estimated time of the next state is greater than the current time of ssd
+     *  C. The estimated time of the next state of DIE whose next state is CHIP_DATA_TRANSFER and the estimated time of the next state is greater than the current time of ssd
+     * CHIP_DATA_TRANSFER read ready state, the data has been transferred from the medium to the register, the next state is the minimum value in the transfer from the register to the buffer
+     * Note that there may be no time that meets the requirements, and time returns 0x7fffffffffffffff at this time.
      *****************************************************************************************************/
     time = (time1 > time2) ? time2 : time1;
     return time;

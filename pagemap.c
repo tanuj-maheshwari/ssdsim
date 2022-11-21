@@ -507,7 +507,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         ssd->dram->map->map_entry[lpn].pn = find_ppn(ssd, channel, chip, die, plane, block, page);
         ssd->dram->map->map_entry[lpn].state = sub->state;
     }
-    else /*这个逻辑页进行了更新，需要将原来的页置为失效*/
+    else /*This logical page has been updated, and the original page needs to be invalidated*/
     {
         ppn = ssd->dram->map->map_entry[lpn].pn;
         location = find_location(ssd, ppn);
@@ -516,8 +516,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
             printf("\nError in get_ppn()\n");
         }
 
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*表示某一页失效，同时标记valid和free状态都为0*/
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  /*表示某一页失效，同时标记valid和free状态都为0*/
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
 
@@ -551,7 +551,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         ssd->dram->map->map_entry[lpn].state = (ssd->dram->map->map_entry[lpn].state | sub->state);
     }
 
-    sub->ppn = ssd->dram->map->map_entry[lpn].pn; /*修改sub子请求的ppn，location等变量*/
+    sub->ppn = ssd->dram->map->map_entry[lpn].pn; /*Modify the ppn, location and other variables of the sub sub-request*/
     sub->location->channel = channel;
     sub->location->chip = chip;
     sub->location->die = die;
@@ -559,7 +559,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
     sub->location->block = active_block;
     sub->location->page = page;
 
-    ssd->program_count++; /*修改ssd的program_count,free_page等变量*/
+    ssd->program_count++; /*Modify ssd's program_count, free_page and other variables*/
     ssd->in_program_size += ssd->parameter->subpage_page;
     ssd->channel_head[channel].program_count++;
     ssd->channel_head[channel].chip_head[chip].program_count++;
@@ -615,6 +615,50 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 
     return ssd;
 }
+
+/**
+ * @brief Adjust the key generation for the subrequest
+ * Takes care of the key validation and generation for a write request.
+ * Also updates the subrequest to reflect if changes were made (for time calculation)
+ * @param ssd The ssd structure
+ * @param sub The subrequest to be adjusted
+ * @return The ssd structure (not required)
+ */
+struct ssd_info *adjust_key_page_for_w_subreq(struct ssd_info *ssd, struct sub_request *sub)
+{
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+    unsigned int key_block = 0, key_page = 0;
+
+    // Get the subrequest's location
+    channel = sub->location->channel;
+    chip = sub->location->chip;
+    die = sub->location->die;
+    plane = sub->location->plane;
+    block = sub->location->block;
+    page = sub->location->page;
+
+    // Get key block and page location
+    key_block = block - (block % ssd->parameter->block_chunk);
+    key_page = page;
+
+    /**
+     * @brief Generate a key for the page if it already doesn't have one
+     * Check for the validity of the key page. If valid, the key already exists.
+     * If invalid, a new key must be generated. Simulated by validating the key page.
+     * Also, the subrequest must be updated to reflect that key was generated.
+     */
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state == 0)
+    {
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state = 1;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
+        ssd->write_flash_count++;
+        sub->key_generated_flag = 1;
+    }
+
+    return ssd;
+}
+
 /*****************************************************************************************
  *这个函数功能是为gc操作寻找新的ppn，因为在gc操作中需要找到新的物理块存放原来物理块上的数据
  *在gc中寻找新物理块的函数，不会引起循环的gc操作

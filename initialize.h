@@ -334,10 +334,10 @@ struct blk_info
 };
 
 struct page_info
-{                    // lpn records the logical page stored in the physical page. When the logical page is valid, valid_state is greater than 0, and free_state is greater than 0;
-    int valid_state; // indicate the page is valid or invalid
-    int free_state;  // each bit indicates the subpage is free or occupted. 1 indicates that the bit is free and 0 indicates that the bit is used
-    unsigned int lpn;
+{
+    int valid_state;            // indicate the page is valid or invalid
+    int free_state;             // each bit indicates the subpage is free or occupted. 1 indicates that the bit is free and 0 indicates that the bit is used
+    unsigned int lpn;           // lpn records the logical page stored in the physical page. When the logical page is valid, valid_state is greater than 0, and free_state is greater than 0;
     unsigned int written_count; // Record the number of times the page was written
 };
 
@@ -430,6 +430,8 @@ struct sub_request
     int64_t next_state_predict_time;
     unsigned int state; // Use the highest bit of the state to indicate whether the sub-request is one of the one-to-many mapping relationships, and if so, it needs to be read into the buffer. 1 means one-to-many, 0 means do not write to the buffer
     // Read requests do not need this member, and lsn plus size can identify the status of the page; but write requests require this member, most of the write sub-requests come from the buffer write-back operation, and there may be situations similar to the discontinuity of sub-pages, so it is necessary to maintain the member alone
+
+    unsigned int key_generated_flag; // Indicates whether a key was generated for this subrequest. Only write requests need to generate keys, and read requests do not need to generate keys.
 
     int64_t begin_time;    // Subrequest start time
     int64_t complete_time; // Record the processing time of the sub-request, that is, the time when the data is actually written or read
