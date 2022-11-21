@@ -3668,6 +3668,11 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
             sub->current_state = SR_W_TRANSFER;
             sub->next_state = SR_COMPLETE;
             sub->next_state_predict_time = ssd->current_time + 7 * ssd->parameter->time_characteristics.tWC + (sub->size * ssd->parameter->subpage_capacity) * ssd->parameter->time_characteristics.tWC;
+            // Add extra time if key was generated for this write
+            if (sub->key_generated_flag)
+            {
+                sub->next_state_predict_time += ssd->parameter->time_characteristics.tKG + ssd->parameter->subpage_capacity * ssd->parameter->time_characteristics.tKG;
+            }
             sub->complete_time = sub->next_state_predict_time;
             time = sub->complete_time;
 

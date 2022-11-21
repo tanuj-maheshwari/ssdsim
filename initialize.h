@@ -167,6 +167,7 @@ struct ac_time_characteristics
     int tRHW;  // RE high to WE low
     int tWHR;  // WE high to RE low
     int tRST;  // device resetting time
+    int tKG;   // key generation time
 } ac_timing;
 
 struct ssd_info

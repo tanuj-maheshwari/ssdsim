@@ -581,6 +581,10 @@ struct parameter_value *load_parameters(char parameter_file[30])
         {
             sscanf(buf + next_eql, "%d", &p->time_characteristics.tRST);
         }
+        else if ((res_eql = strcmp(buf, "t_KG")) == 0)
+        {
+            sscanf(buf + next_eql, "%d", &p->time_characteristics.tKG);
+        }
         else if ((res_eql = strcmp(buf, "erase limit")) == 0)
         {
             sscanf(buf + next_eql, "%d", &p->ers_limit);
