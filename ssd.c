@@ -360,7 +360,7 @@ struct ssd_info *simulate(struct ssd_info *ssd)
         }
 
         // FTL+FCL+Flash layer
-        process(ssd); /// PROBLEM HERE
+        process(ssd);
         trace_output(ssd);
         init_gc(ssd);
 
@@ -438,7 +438,7 @@ int get_requests(struct ssd_info *ssd)
      * large_lsn: How many subpages are under the channel, that is, how many sectors. Overprovide coefficient: not all the space in SSD can be used by users,
      * For example, 32G SSD may have 10% space reserved for other use, so multiply by 1-provide
      ***********************************************************************************************************/
-    large_lsn = (int)((ssd->parameter->subpage_page * ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num) * (1 - ssd->parameter->overprovide));
+    large_lsn = (int)(((ssd->parameter->subpage_page * ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num) * (1 - ssd->parameter->overprovide) * (ssd->parameter->block_chunk - 1)) / (ssd->parameter->block_chunk));
     lsn = lsn % large_lsn;
 
     nearest_event_time = find_nearest_event(ssd);
