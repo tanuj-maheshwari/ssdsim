@@ -263,6 +263,14 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
                      ***************************************************************/
                     ppn = get_ppn_for_pre_process(ssd, lsn);
                     location = find_location(ssd, ppn);
+
+                    /**
+                     * @brief Adjust the timing and validity status for key pages
+                     * New ppn => new key must be generated. So, that key page is set to valid.
+                     * Pre-process timings are added to ssd->current_time
+                     */
+                    adjust_key_page_for_pre_process(ssd, location);
+
                     // ssd->program_count++;
                     // ssd->in_program_size+=ssd->parameter->subpage_page;
                     ssd->channel_head[location->channel].program_count++;
@@ -654,6 +662,53 @@ struct ssd_info *adjust_key_page_for_w_subreq(struct ssd_info *ssd, struct sub_r
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
         ssd->write_flash_count++;
         sub->key_generated_flag = 1;
+    }
+
+    return ssd;
+}
+
+/**
+ * @brief Adjust the key generation for pre processing step
+ * Takes care of the key validation and generation for a write request.
+ * Also updates the ssd pre-processing time (for time calculation)
+ * @param ssd The ssd structure
+ * @param location The physical location assigned to the read request (in pre-processing step)
+ * @return The ssd structure (not required)
+ */
+struct ssd_info *adjust_key_page_for_pre_process(struct ssd_info *ssd, struct local *location)
+{
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+    unsigned int key_block = 0, key_page = 0;
+
+    // Get the subrequest's location
+    channel = location->channel;
+    chip = location->chip;
+    die = location->die;
+    plane = location->plane;
+    block = location->block;
+    page = location->page;
+
+    // printf("adjust_key_page_for_pre_process: channel %d, chip %d, die %d, plane %d, block %d, page %d\n", channel, chip, die, plane, block, page);
+
+    // Get key block and page location
+    key_block = block - (block % ssd->parameter->block_chunk);
+    key_page = page;
+
+    /**
+     * @brief Generate a key for the page if it already doesn't have one
+     * Check for the validity of the key page. If valid, the key already exists.
+     * If invalid, a new key must be generated. Simulated by validating the key page.
+     * Also, the ssd pre-process time must be updated to reflect that key was generated.
+     */
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state == 0)
+    {
+        // printf("adjust_key_page_for_pre_process: key generated\n");
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state = 1;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
+        ssd->write_flash_count++;
+        ssd->pre_process_time += ssd->parameter->time_characteristics.tKG + ssd->parameter->subpage_capacity * ssd->parameter->time_characteristics.tWC;
+        // printf("adjust_key_page_for_pre_process: current_time %lld\n", ssd->current_time);
     }
 
     return ssd;

@@ -182,6 +182,7 @@ struct ssd_info
 
     int64_t simulation_start_time;
     int64_t simulation_end_time;
+    int64_t pre_process_time; // Time for pre-processing read requests
 
     double ssd_energy;    // SSD的能耗，是时间和芯片数的函数,能耗因子
     int64_t current_time; //记录系统时间

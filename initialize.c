@@ -85,6 +85,10 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     ssd->min_lsn = 0x7fffffff; // 0b1111111111111111111111111111111 (32 bit, all 1)
     ssd->page = ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block;
 
+    // Initialize timing parameters
+    ssd->pre_process_time = 0;
+    ssd->current_time = 0;
+
     //初始化 dram | initialize dram
     ssd->dram = (struct dram_info *)malloc(sizeof(struct dram_info));
     alloc_assert(ssd->dram, "ssd->dram");

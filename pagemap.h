@@ -33,6 +33,7 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd);
 unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn);
 struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, struct sub_request *sub);
 struct ssd_info *adjust_key_page_for_w_subreq(struct ssd_info *ssd, struct sub_request *sub);
+struct ssd_info *adjust_key_page_for_pre_process(struct ssd_info *ssd, struct local *location);
 unsigned int gc(struct ssd_info *ssd, unsigned int channel, unsigned int flag);
 int gc_direct_erase(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane);
 int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, struct gc_operation *gc_node);
