@@ -1147,15 +1147,17 @@ Status move_page(struct ssd_info *ssd, struct local *location, unsigned int *tra
 /*******************************************************************************************************************************************
  *目标的plane没有可以直接删除的block，需要寻找目标擦除块后在实施擦除操作，用在不能中断的gc操作中，成功删除一个块，返回1，没有删除一个块返回-1
  *在这个函数中，不用考虑目标channel,die是否是空闲的,擦除invalid_page_num最多的block
+ *The target plane does not have a block that can be deleted directly. It is necessary to find the target erase block before performing the erase operation. It is used in uninterruptible gc operations. If a block is successfully deleted, it returns 1, and if a block is not deleted, it returns -1
+ * In this function, regardless of whether the target channel or die is free, erase the block with the most invalid_page_num
  ********************************************************************************************************************************************/
 int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, struct gc_operation *gc_node)
 {
     unsigned int i = 0, invalid_page = 0;
-    unsigned int block, active_block, transfer_size, free_page, page_move_count = 0; /*记录失效页最多的块号*/
+    unsigned int block, active_block, transfer_size, free_page, page_move_count = 0; /*Record the block number with the most failed pages*/
     struct local *location = NULL;
     unsigned int total_invalid_page_num = 0;
 
-    if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS) /*获取活跃块*/
+    if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS) /*get active block*/
     {
         printf("\n\n Error in uninterrupt_gc().\n");
         return ERROR;
@@ -1190,7 +1192,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
     }
 
     free_page = 0;
-    for (i = 0; i < ssd->parameter->page_block; i++) /*逐个检查每个page，如果有有效数据的page需要移动到其他地方存储*/
+    for (i = 0; i < ssd->parameter->page_block; i++) /*Check each page one by one, if the page with valid data needs to be moved to other places for storage*/
     {
         if ((ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].free_state & PG_SUB) == 0x0000000f)
         {
@@ -1212,7 +1214,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
             location->plane = plane;
             location->block = block;
             location->page = i;
-            move_page(ssd, location, &transfer_size); /*真实的move_page操作*/
+            move_page(ssd, location, &transfer_size); /*Real move_page operation*/
             page_move_count++;
 
             free(location);
@@ -1220,7 +1222,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
         }
     }
 
-    erase_operation(ssd, channel, chip, die, plane, block); /*执行完move_page操作后，就立即执行block的擦除操作*/
+    erase_operation(ssd, channel, chip, die, plane, block); /*After the move_page operation is executed, the erase operation of the block is executed immediately*/
 
     ssd->channel_head[channel].current_state = CHANNEL_GC;
     ssd->channel_head[channel].current_time = ssd->current_time;
@@ -1232,6 +1234,9 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
     /***************************************************************
      *在可执行COPYBACK高级命令与不可执行COPYBACK高级命令这两种情况下，
      *channel下个状态时间的计算，以及chip下个状态时间的计算
+
+     *In the two cases where the COPYBACK advanced command can be executed and the COPYBACK advanced command cannot be executed,
+     *Calculation of the next state time of the channel, and calculation of the next state time of the chip
      ***************************************************************/
     if ((ssd->parameter->advanced_commands & AD_COPYBACK) == AD_COPYBACK)
     {
