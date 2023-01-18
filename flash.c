@@ -832,7 +832,7 @@ struct sub_request *find_write_sub_request(struct ssd_info *ssd, unsigned int ch
             {
                 if (sub->update != NULL) /*如果有需要提前读出的页*/
                 {
-                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) //被更新的页已经被读出
+                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) // 被更新的页已经被读出
                     {
                         break;
                     }
@@ -900,7 +900,7 @@ struct sub_request *find_write_sub_request(struct ssd_info *ssd, unsigned int ch
             {
                 if (sub->update != NULL)
                 {
-                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) //被更新的页已经被读出
+                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) // 被更新的页已经被读出
                     {
                         break;
                     }
@@ -1220,7 +1220,7 @@ int services_2_r_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *
 }
 
 /*********************************************************************
- *当一个写子请求处理完后，要从请求队列上删除，这个函数就是执行这个功能。
+*When a write subrequest is processed, it needs to be deleted from the request queue. This function is to perform this function.
  **********************************************************************/
 int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_request *sub)
 {
@@ -1258,6 +1258,36 @@ int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_
     return SUCCESS;
 }
 
+/*
+
+delete page
+Simple deletion is implemented
+Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
+*/
+/* int delete_page_secure(struct ssd_info *ssd,unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int chunk, unsigned int block, unsigned int page){ */
+int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub){
+    // deletes the block
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+    unsigned int key_block = 0, key_page = 0;
+    
+    channel = sub->location->channel;
+    chip = sub->location->chip;
+    die = sub->location->die;
+    plane = sub->location->plane;
+    block = sub->location->block;
+    page = sub->location->page;
+    key_block = block - (block % ssd->parameter->block_chunk);
+    key_page = page;
+
+    for(int i = 0 ; i < ssd->parameter->page_block ; i++){// Traverse all the pages in the block 
+        if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 1)//page is valid so we need to move the data to another location before erasing the block
+        {
+            // incomplete
+            //copy page i to another location
+        }
+    }
+    erase_operation(ssd,channel,chip,die,plane,block);
+}
 /*
  * 函数的功能就是执行copyback命令的功能，
  * The function of the function is to execute the function of the copyback command,
@@ -1764,7 +1794,7 @@ struct ssd_info *dynamic_advanced_process(struct ssd_info *ssd, unsigned int cha
         {
             if (sub->current_state == SR_WAIT)
             {
-                if ((sub->update == NULL) || ((sub->update != NULL) && ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))))) //没有需要提前读出的页
+                if ((sub->update == NULL) || ((sub->update != NULL) && ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))))) // 没有需要提前读出的页
                 {
                     subs[subs_count] = sub;
                     subs_count++;
@@ -2906,11 +2936,11 @@ struct ssd_info *flash_page_state_modify(struct ssd_info *ssd, struct sub_reques
     {
         ppn = ssd->dram->map->map_entry[sub->lpn].pn;
         location = find_location(ssd, ppn);
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; //表示某一页失效，同时标记valid和free状态都为0
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  //表示某一页失效，同时标记valid和free状态都为0
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; // 表示某一页失效，同时标记valid和free状态都为0
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  // 表示某一页失效，同时标记valid和free状态都为0
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
-        if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num == ssd->parameter->page_block) //该block中全是invalid的页，可以直接删除
+        if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num == ssd->parameter->page_block) // 该block中全是invalid的页，可以直接删除
         {
             new_direct_erase = (struct direct_erase *)malloc(sizeof(struct direct_erase));
             alloc_assert(new_direct_erase, "new_direct_erase");
