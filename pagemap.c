@@ -199,9 +199,9 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
     printf("full page %d %d \n", full_page, ssd->parameter->subpage_page);
 
     /*计算出这个ssd的最大逻辑扇区号 | Calculate the maximum logical sector number of this ssd*/
-    unsigned int num_total_subpages_without_overprovide = (unsigned int)(ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page);
+    unsigned int num_total_subpages_without_overprovide = (unsigned int)(ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block * ssd->parameter->subpage_page * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
     unsigned int num_total_subpages = (unsigned int)(num_total_subpages_without_overprovide * (1 - ssd->parameter->overprovide));
-    unsigned int num_subpages_except_key_blocks = (unsigned int)(num_total_subpages * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
+    // unsigned int num_subpages_except_key_blocks = (unsigned int)(num_total_subpages * (ssd->parameter->block_chunk - 1) / ssd->parameter->block_chunk);
     /**
      * safety - number of total subpages considering each plane has only one block
      * In other words, one block in each plane is left empty, as a safety measure
@@ -209,7 +209,7 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
     // unsigned int num_blocks_per_plane = ssd->parameter->block_plane;
     // unsigned int safety = (unsigned int)(num_total_subpages / num_blocks_per_plane);
     unsigned int safety = 0;
-    unsigned int num_safe_subpages = num_subpages_except_key_blocks - safety;
+    unsigned int num_safe_subpages = num_total_subpages - safety;
 
     largest_lsn = num_safe_subpages - (num_safe_subpages % ssd->parameter->subpage_page);
     printf("largest lsn : %d\n", largest_lsn);
@@ -263,6 +263,14 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd)
                      ***************************************************************/
                     ppn = get_ppn_for_pre_process(ssd, lsn);
                     location = find_location(ssd, ppn);
+
+                    /**
+                     * @brief Adjust the timing and validity status for key pages
+                     * New ppn => new key must be generated. So, that key page is set to valid.
+                     * Pre-process timings are added to ssd->current_time
+                     */
+                    adjust_key_page_for_pre_process(ssd, location);
+
                     // ssd->program_count++;
                     // ssd->in_program_size+=ssd->parameter->subpage_page;
                     ssd->channel_head[location->channel].program_count++;
@@ -507,7 +515,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         ssd->dram->map->map_entry[lpn].pn = find_ppn(ssd, channel, chip, die, plane, block, page);
         ssd->dram->map->map_entry[lpn].state = sub->state;
     }
-    else /*这个逻辑页进行了更新，需要将原来的页置为失效*/
+    else /*This logical page has been updated, and the original page needs to be invalidated*/
     {
         ppn = ssd->dram->map->map_entry[lpn].pn;
         location = find_location(ssd, ppn);
@@ -516,8 +524,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
             printf("\nError in get_ppn()\n");
         }
 
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*表示某一页失效，同时标记valid和free状态都为0*/
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  /*表示某一页失效，同时标记valid和free状态都为0*/
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
 
@@ -551,7 +559,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         ssd->dram->map->map_entry[lpn].state = (ssd->dram->map->map_entry[lpn].state | sub->state);
     }
 
-    sub->ppn = ssd->dram->map->map_entry[lpn].pn; /*修改sub子请求的ppn，location等变量*/
+    sub->ppn = ssd->dram->map->map_entry[lpn].pn; /*Modify the ppn, location and other variables of the sub sub-request*/
     sub->location->channel = channel;
     sub->location->chip = chip;
     sub->location->die = die;
@@ -559,7 +567,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
     sub->location->block = active_block;
     sub->location->page = page;
 
-    ssd->program_count++; /*修改ssd的program_count,free_page等变量*/
+    ssd->program_count++; /*Modify ssd's program_count, free_page and other variables*/
     ssd->in_program_size += ssd->parameter->subpage_page;
     ssd->channel_head[channel].program_count++;
     ssd->channel_head[channel].chip_head[chip].program_count++;
@@ -571,8 +579,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
     ssd->write_flash_count++;
 
     if (ssd->parameter->active_write == 0) /*如果没有主动策略，只采用gc_hard_threshold，并且无法中断GC过程 | If there is no active policy, only gc_hard_threshold is used, and the GC process cannot be interrupted.*/
-    {                                      /*如果plane中的free_page的数目少于gc_hard_threshold所设定的阈值就产生gc操作*/
-        if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < (ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold))
+    {                                      /*如果plane中的free_page的数目少于gc_hard_threshold所设定的阈值就产生gc操作 | If the number of free_pages in the plane is less than the threshold set by gc_hard_threshold, a gc operation will be generated.*/
+        if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
         {
             // check whether gc process already initialized for this plane
             is_gc_inited = 1;
@@ -604,7 +612,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
                 gc_node->priority = GC_UNINTERRUPT;
                 gc_node->next_node = ssd->channel_head[channel].gc_command;
                 gc_node->x_init_time = ssd->channel_head[channel].current_time;
-                gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)(ssd->parameter->page_block * ssd->parameter->block_plane) * (double)100;
+                gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)(((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
                 gc_node->x_moved_pages = 0;
 
                 ssd->channel_head[channel].gc_command = gc_node;
@@ -615,6 +623,97 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
 
     return ssd;
 }
+
+/**
+ * @brief Adjust the key generation for the subrequest
+ * Takes care of the key validation and generation for a write request.
+ * Also updates the subrequest to reflect if changes were made (for time calculation)
+ * @param ssd The ssd structure
+ * @param sub The subrequest to be adjusted
+ * @return The ssd structure (not required)
+ */
+struct ssd_info *adjust_key_page_for_w_subreq(struct ssd_info *ssd, struct sub_request *sub)
+{
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+    unsigned int key_block = 0, key_page = 0;
+
+    // Get the subrequest's location
+    channel = sub->location->channel;
+    chip = sub->location->chip;
+    die = sub->location->die;
+    plane = sub->location->plane;
+    block = sub->location->block;
+    page = sub->location->page;
+
+    // Get key block and page location
+    key_block = block - (block % ssd->parameter->block_chunk);
+    key_page = page;
+
+    /**
+     * @brief Generate a key for the page if it already doesn't have one
+     * Check for the validity of the key page. If valid, the key already exists.
+     * If invalid, a new key must be generated. Simulated by validating the key page.
+     * Also, the subrequest must be updated to reflect that key was generated.
+     */
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state == 0)
+    {
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state = 1;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
+        ssd->write_flash_count++;
+        sub->key_generated_flag = 1;
+    }
+
+    return ssd;
+}
+
+/**
+ * @brief Adjust the key generation for pre processing step
+ * Takes care of the key validation and generation for a write request.
+ * Also updates the ssd pre-processing time (for time calculation)
+ * @param ssd The ssd structure
+ * @param location The physical location assigned to the read request (in pre-processing step)
+ * @return The ssd structure (not required)
+ */
+struct ssd_info *adjust_key_page_for_pre_process(struct ssd_info *ssd, struct local *location)
+{
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+    unsigned int key_block = 0, key_page = 0;
+
+    // Get the subrequest's location
+    channel = location->channel;
+    chip = location->chip;
+    die = location->die;
+    plane = location->plane;
+    block = location->block;
+    page = location->page;
+
+    // printf("adjust_key_page_for_pre_process: channel %d, chip %d, die %d, plane %d, block %d, page %d\n", channel, chip, die, plane, block, page);
+
+    // Get key block and page location
+    key_block = block - (block % ssd->parameter->block_chunk);
+    key_page = page;
+
+    /**
+     * @brief Generate a key for the page if it already doesn't have one
+     * Check for the validity of the key page. If valid, the key already exists.
+     * If invalid, a new key must be generated. Simulated by validating the key page.
+     * Also, the ssd pre-process time must be updated to reflect that key was generated.
+     */
+    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state == 0)
+    {
+        // printf("adjust_key_page_for_pre_process: key generated\n");
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].valid_state = 1;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
+        ssd->write_flash_count++;
+        ssd->pre_process_time += ssd->parameter->time_characteristics.tKG + ssd->parameter->subpage_capacity * ssd->parameter->time_characteristics.tWC;
+        // printf("adjust_key_page_for_pre_process: current_time %lld\n", ssd->current_time);
+    }
+
+    return ssd;
+}
+
 /*****************************************************************************************
  *这个函数功能是为gc操作寻找新的ppn，因为在gc操作中需要找到新的物理块存放原来物理块上的数据
  *在gc中寻找新物理块的函数，不会引起循环的gc操作
@@ -1048,15 +1147,17 @@ Status move_page(struct ssd_info *ssd, struct local *location, unsigned int *tra
 /*******************************************************************************************************************************************
  *目标的plane没有可以直接删除的block，需要寻找目标擦除块后在实施擦除操作，用在不能中断的gc操作中，成功删除一个块，返回1，没有删除一个块返回-1
  *在这个函数中，不用考虑目标channel,die是否是空闲的,擦除invalid_page_num最多的block
+ *The target plane does not have a block that can be deleted directly. It is necessary to find the target erase block before performing the erase operation. It is used in uninterruptible gc operations. If a block is successfully deleted, it returns 1, and if a block is not deleted, it returns -1
+ * In this function, regardless of whether the target channel or die is free, erase the block with the most invalid_page_num
  ********************************************************************************************************************************************/
 int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, struct gc_operation *gc_node)
 {
     unsigned int i = 0, invalid_page = 0;
-    unsigned int block, active_block, transfer_size, free_page, page_move_count = 0; /*记录失效页最多的块号*/
+    unsigned int block, active_block, transfer_size, free_page, page_move_count = 0; /*Record the block number with the most failed pages*/
     struct local *location = NULL;
     unsigned int total_invalid_page_num = 0;
 
-    if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS) /*获取活跃块*/
+    if (find_active_block(ssd, channel, chip, die, plane) != SUCCESS) /*get active block*/
     {
         printf("\n\n Error in uninterrupt_gc().\n");
         return ERROR;
@@ -1066,8 +1167,13 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
     invalid_page = 0;
     transfer_size = 0;
     block = -1;
-    for (i = 0; i < ssd->parameter->block_plane; i++) /*查找最多invalid_page的块号，以及最大的invalid_page_num*/
+    for (i = 0; i < ssd->parameter->block_plane; i++) /** Find the block number with the most invalid_page, and the largest invalid_page_num*/
     {
+        // Don't consider key blocks for gc
+        if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].is_key_block)
+        {
+            continue;
+        }
         total_invalid_page_num += ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].invalid_page_num;
         if ((active_block != i) && (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].invalid_page_num > invalid_page))
         {
@@ -1086,7 +1192,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
     }
 
     free_page = 0;
-    for (i = 0; i < ssd->parameter->page_block; i++) /*逐个检查每个page，如果有有效数据的page需要移动到其他地方存储*/
+    for (i = 0; i < ssd->parameter->page_block; i++) /*Check each page one by one, if the page with valid data needs to be moved to other places for storage*/
     {
         if ((ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].free_state & PG_SUB) == 0x0000000f)
         {
@@ -1108,7 +1214,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
             location->plane = plane;
             location->block = block;
             location->page = i;
-            move_page(ssd, location, &transfer_size); /*真实的move_page操作*/
+            move_page(ssd, location, &transfer_size); /*Real move_page operation*/
             page_move_count++;
 
             free(location);
@@ -1116,7 +1222,7 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
         }
     }
 
-    erase_operation(ssd, channel, chip, die, plane, block); /*执行完move_page操作后，就立即执行block的擦除操作*/
+    erase_operation(ssd, channel, chip, die, plane, block); /*After the move_page operation is executed, the erase operation of the block is executed immediately*/
 
     ssd->channel_head[channel].current_state = CHANNEL_GC;
     ssd->channel_head[channel].current_time = ssd->current_time;
@@ -1128,6 +1234,9 @@ int uninterrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip
     /***************************************************************
      *在可执行COPYBACK高级命令与不可执行COPYBACK高级命令这两种情况下，
      *channel下个状态时间的计算，以及chip下个状态时间的计算
+
+     *In the two cases where the COPYBACK advanced command can be executed and the COPYBACK advanced command cannot be executed,
+     *Calculation of the next state time of the channel, and calculation of the next state time of the chip
      ***************************************************************/
     if ((ssd->parameter->advanced_commands & AD_COPYBACK) == AD_COPYBACK)
     {
@@ -1166,6 +1275,11 @@ int interrupt_gc(struct ssd_info *ssd, unsigned int channel, unsigned int chip, 
     {
         for (i = 0; i < ssd->parameter->block_plane; i++)
         {
+            // Don't consider key blocks for gc
+            if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].is_key_block)
+            {
+                continue;
+            }
             if ((active_block != i) && (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].invalid_page_num > invalid_page))
             {
                 invalid_page = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[i].invalid_page_num;

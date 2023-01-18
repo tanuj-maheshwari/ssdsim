@@ -85,6 +85,10 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     ssd->min_lsn = 0x7fffffff; // 0b1111111111111111111111111111111 (32 bit, all 1)
     ssd->page = ssd->parameter->chip_num * ssd->parameter->die_chip * ssd->parameter->plane_die * ssd->parameter->block_plane * ssd->parameter->page_block;
 
+    // Initialize timing parameters
+    ssd->pre_process_time = 0;
+    ssd->current_time = 0;
+
     //初始化 dram | initialize dram
     ssd->dram = (struct dram_info *)malloc(sizeof(struct dram_info));
     alloc_assert(ssd->dram, "ssd->dram");
@@ -243,7 +247,12 @@ struct plane_info *initialize_plane(struct plane_info *p_plane, struct parameter
     unsigned int i;
     struct blk_info *p_block;
     p_plane->add_reg_ppn = -1; // The additional register; additional register = -1 in the plane means no data
-    p_plane->free_page = parameter->block_plane * parameter->page_block;
+
+    /*--------------------------------------------------------------*/
+    /* Commented line is giving error. It is followed by a temporary fix. */
+    // p_plane->free_page = ((int64_t)parameter->block_plane * parameter->page_block * (parameter->block_chunk - 1)) / (parameter->block_chunk); // The number of free pages in the plane
+    p_plane->free_page = (int64_t)parameter->block_plane * parameter->page_block; // The number of free pages in the plane
+    /*--------------------------------------------------------------*/
 
     p_plane->blk_head = (struct blk_info *)malloc(parameter->block_plane * sizeof(struct blk_info));
     alloc_assert(p_plane->blk_head, "p_plane->blk_head");
@@ -253,6 +262,7 @@ struct plane_info *initialize_plane(struct plane_info *p_plane, struct parameter
     {
         p_block = &(p_plane->blk_head[i]);
         initialize_block(p_block, parameter);
+        p_block->is_key_block = i % parameter->block_chunk == 0 ? 1 : 0;
     }
     return p_plane;
 }
@@ -579,6 +589,10 @@ struct parameter_value *load_parameters(char parameter_file[30])
         else if ((res_eql = strcmp(buf, "t_RST")) == 0)
         {
             sscanf(buf + next_eql, "%d", &p->time_characteristics.tRST);
+        }
+        else if ((res_eql = strcmp(buf, "t_KG")) == 0)
+        {
+            sscanf(buf + next_eql, "%d", &p->time_characteristics.tKG);
         }
         else if ((res_eql = strcmp(buf, "erase limit")) == 0)
         {

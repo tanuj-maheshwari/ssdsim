@@ -438,7 +438,7 @@ int get_requests(struct ssd_info *ssd)
      * large_lsn: How many subpages are under the channel, that is, how many sectors. Overprovide coefficient: not all the space in SSD can be used by users,
      * For example, 32G SSD may have 10% space reserved for other use, so multiply by 1-provide
      ***********************************************************************************************************/
-    large_lsn = (int)((ssd->parameter->subpage_page * ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num) * (1 - ssd->parameter->overprovide));
+    large_lsn = (int)(((ssd->parameter->subpage_page * ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num) * (1 - ssd->parameter->overprovide) * (ssd->parameter->block_chunk - 1)) / (ssd->parameter->block_chunk));
     lsn = lsn % large_lsn;
 
     nearest_event_time = find_nearest_event(ssd);
@@ -1070,7 +1070,7 @@ float get_crt_free_page_prct(struct ssd_info *ssd)
     page_total = free_page = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        page_total += ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i];
+        page_total += (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
@@ -1089,13 +1089,13 @@ float get_crt_nonempty_free_page_prct(struct ssd_info *ssd)
     page_total = free_page = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        page_total += ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i];
+        page_total += (((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
                 for (l = 0; l < ssd->parameter->plane_die; l++)
                     for (m = 0; m < ssd->parameter->block_plane; m++)
-                        if (ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].free_page_num < ssd->parameter->page_block)
+                        if (ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].free_page_num < ssd->parameter->page_block && !ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].is_key_block)
                             free_page += ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].free_page_num;
     }
 
@@ -1104,23 +1104,23 @@ float get_crt_nonempty_free_page_prct(struct ssd_info *ssd)
 
 float get_crt_nonempty_free_block_prct(struct ssd_info *ssd)
 {
-    unsigned int free_page, page_total;
+    unsigned int free_blk, blk_total;
     int i, j, k, l, m, n;
 
-    page_total = free_page = 0;
+    blk_total = free_blk = 0;
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        page_total += ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i];
+        blk_total += (((int64_t)ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_channel[i] * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk);
 
         for (j = 0; j < ssd->parameter->chip_channel[i]; j++)
             for (k = 0; k < ssd->parameter->die_chip; k++)
                 for (l = 0; l < ssd->parameter->plane_die; l++)
                     for (m = 0; m < ssd->parameter->block_plane; m++)
-                        if (ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].free_page_num < ssd->parameter->page_block)
-                            free_page++;
+                        if (ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].free_page_num < ssd->parameter->page_block && !ssd->channel_head[i].chip_head[j].die_head[k].plane_head[l].blk_head[m].is_key_block)
+                            free_blk++;
     }
 
-    return (float)free_page / (float)page_total * 100.0;
+    return (float)free_blk / (float)blk_total * 100.0;
 }
 
 /*******************************************************************************
@@ -1246,12 +1246,14 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "read amplification (size): %.2f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
     fprintf(ssd->statisticfile, "avg. gc page move: %.2f (%.2f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
     fprintf(ssd->statisticfile, "gc time window: %lld\n", ssd->gc_time_window);
-    fprintf(ssd->statisticfile, "\n\n simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
+    fprintf(ssd->statisticfile, "\n\n pre-process duration: %lld ns\n", ssd->pre_process_time);
+    fprintf(ssd->statisticfile, " simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
     fprintf(ssd->statisticfile, " IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fprintf(ssd->statisticfile, " read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fprintf(ssd->statisticfile, " write BW: %.3f MB/s\n", ((double)ssd->write_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fflush(ssd->statisticfile);
 
+    printf(" pre-process duration: %lld ns\n", ssd->pre_process_time);
     printf(" simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
     printf(" IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     printf(" read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
@@ -1354,6 +1356,11 @@ int64_t find_nearest_event(struct ssd_info *ssd)
      *		     C.下一状态为CHIP_DATA_TRANSFER且下一状态预计时间大于ssd当前时间的DIE的下一状态预计时间
      *CHIP_DATA_TRANSFER读准备好状态，数据已从介质传到了register，下一状态是从register传往buffer中的最小值
      *注意可能都没有满足要求的time，这时time返回0x7fffffffffffffff 。
+     * time is all A. The estimated time of the next state of CHANNEL whose next state is CHANNEL_IDLE and the estimated time of the next state is greater than the current time of ssd
+     *  B. The estimated time of the next state of DIE whose next state is CHIP_IDLE and the estimated time of the next state is greater than the current time of ssd
+     *  C. The estimated time of the next state of DIE whose next state is CHIP_DATA_TRANSFER and the estimated time of the next state is greater than the current time of ssd
+     * CHIP_DATA_TRANSFER read ready state, the data has been transferred from the medium to the register, the next state is the minimum value in the transfer from the register to the buffer
+     * Note that there may be no time that meets the requirements, and time returns 0x7fffffffffffffff at this time.
      *****************************************************************************************************/
     time = (time1 > time2) ? time2 : time1;
     return time;
@@ -1697,7 +1704,7 @@ struct ssd_info *init_gc(struct ssd_info *ssd)
     int64_t gc_start_time = 0;
 
     // Don't check when #free-page > threshold
-    threshold = ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num * (1 - ssd->parameter->overprovide) * ssd->parameter->gc_hard_threshold;
+    threshold = ((int64_t)ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num * (1 - ssd->parameter->overprovide) * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk;
     free_page = 0;
     for (channel = 0; channel < ssd->parameter->channel_number; channel++)
     {
@@ -1726,7 +1733,7 @@ struct ssd_info *init_gc(struct ssd_info *ssd)
             {
                 for (plane = 0; plane < ssd->parameter->die_chip; plane++)
                 {
-                    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < (ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold))
+                    if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page < ((ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->gc_hard_threshold * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk))
                     {
                         // check whether gc process already initialized for this plane
                         is_gc_inited = 1;
@@ -1756,7 +1763,7 @@ struct ssd_info *init_gc(struct ssd_info *ssd)
                             gc_node->priority = GC_UNINTERRUPT;
                             gc_node->next_node = ssd->channel_head[channel].gc_command;
                             gc_node->x_init_time = ssd->channel_head[channel].current_time;
-                            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)(ssd->parameter->page_block * ssd->parameter->block_plane) * (double)100;
+                            gc_node->x_free_percentage = (double)ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].free_page / (double)((ssd->parameter->page_block * ssd->parameter->block_plane * (ssd->parameter->block_chunk - 1)) / ssd->parameter->block_chunk) * (double)100;
                             gc_node->x_moved_pages = 0;
 
                             ssd->channel_head[channel].gc_command = gc_node;
