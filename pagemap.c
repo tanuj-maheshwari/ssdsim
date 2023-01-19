@@ -525,7 +525,7 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         }
 
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
 
@@ -763,10 +763,10 @@ unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned
 }
 
 /*********************************************************************************************************************
- * 朱志明 于2011年7月28日修改
- *函数的功能就是erase_operation擦除操作，把channel，chip，die，plane下的block擦除掉
- *也就是初始化这个block的相关参数，eg：free_page_num=page_block，invalid_page_num=0，last_write_page=-1，erase_count++
- *还有这个block下面的每个page的相关参数也要修改。
+* Revised by Zhu Zhiming on July 28, 2011
+ *The function of the function is the erase_operation erase operation, which erases the blocks under the channel, chip, die, and plane
+ *That is to initialize the relevant parameters of this block, eg: free_page_num=page_block, invalid_page_num=0, last_write_page=-1, erase_count++
+ *The relevant parameters of each page under this block should also be modified.
  *********************************************************************************************************************/
 
 Status erase_operation(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block)

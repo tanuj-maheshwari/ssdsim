@@ -1278,12 +1278,14 @@ int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub){
     page = sub->location->page;
     key_block = block - (block % ssd->parameter->block_chunk);
     key_page = page;
+    unsigned int chg_cur_time_flag = 1, flag=0;
 
     for(int i = 0 ; i < ssd->parameter->page_block ; i++){// Traverse all the pages in the block 
         if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 1)//page is valid so we need to move the data to another location before erasing the block
         {
             // incomplete
             //copy page i to another location
+            /* services_2_write(ssd, i, &flag, &chg_cur_time_flag); */
         }
     }
     erase_operation(ssd,channel,chip,die,plane,block);
