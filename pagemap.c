@@ -767,10 +767,23 @@ unsigned int get_ppn_for_gc(struct ssd_info *ssd, unsigned int channel, unsigned
  *The function of the function is the erase_operation erase operation, which erases the blocks under the channel, chip, die, and plane
  *That is to initialize the relevant parameters of this block, eg: free_page_num=page_block, invalid_page_num=0, last_write_page=-1, erase_count++
  *The relevant parameters of each page under this block should also be modified.
+
+
+
+1. Make free page count count equal to page_block
+   Make invalid page count to 0
+   the last_write_page will be -1
+2. Increase the erase count
+3. Loop the pages in the block and for each page
+    i) set free state as ffffffff i.e. all the 32 subpgaes in the page are free
+    ii) set valid state as 0
+    iii) As it is free page the lpn = -1
+
  *********************************************************************************************************************/
 
 Status erase_operation(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int block)
 {
+    
     unsigned int i = 0;
     ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].free_page_num = ssd->parameter->page_block;
     ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].invalid_page_num = 0;
@@ -792,6 +805,7 @@ Status erase_operation(struct ssd_info *ssd, unsigned int channel, unsigned int 
 
 /**************************************************************************************
  *这个函数的功能是处理INTERLEAVE_TWO_PLANE，INTERLEAVE，TWO_PLANE，NORMAL下的擦除的操作。
+ *The function of this function is to handle the erase operation under INTERLEAVE_TWO_PLANE, INTERLEAVE, TWO_PLANE, NORMAL.
  ***************************************************************************************/
 Status erase_planes(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die1, unsigned int plane1, unsigned int command)
 {

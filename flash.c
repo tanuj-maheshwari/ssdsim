@@ -1263,32 +1263,48 @@ int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_
 delete page
 Simple deletion is implemented
 Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
+
+Takes block as input and deletes the block
+Steps for deleting the block
+1. Move the pages
+2. Erase the block
+3. Mark the pages as free
+
 */
-/* int delete_page_secure(struct ssd_info *ssd,unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane, unsigned int chunk, unsigned int block, unsigned int page){ */
-int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub){
-    // deletes the block
-    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0, page = 0;
+int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
+    // deletes the block(input)
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, page = 0;
     unsigned int key_block = 0, key_page = 0;
     
     channel = sub->location->channel;
     chip = sub->location->chip;
     die = sub->location->die;
     plane = sub->location->plane;
-    block = sub->location->block;
-    page = sub->location->page;
+    
     key_block = block - (block % ssd->parameter->block_chunk);
-    key_page = page;
-    unsigned int chg_cur_time_flag = 1, flag=0;
-
-    for(int i = 0 ; i < ssd->parameter->page_block ; i++){// Traverse all the pages in the block 
-        if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 1)//page is valid so we need to move the data to another location before erasing the block
-        {
-            // incomplete
-            //copy page i to another location
-            /* services_2_write(ssd, i, &flag, &chg_cur_time_flag); */
-        }
+    if(block==key_block){
+        // as it is key block we need to erase the page and define new keys 
+        // erases the block and sets the free state as 0xffffffff
+        erase_operation(ssd,channel,chip,die,plane,block);
+        //define new keys
     }
-    erase_operation(ssd,channel,chip,die,plane,block);
+    else{
+        //if it is not key block we need to move the valid pages to a newer location
+        unsigned int chg_cur_time_flag = 1, flag=0;
+
+        for(int i = 0 ; i < ssd->parameter->page_block ; i++){// Traverse all the pages in the block 
+            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 1)//page is valid so we need to move the data to another location before erasing the block
+            {
+                // incomplete
+                //copy page i to another location
+                /* services_2_write(ssd, i, &flag, &chg_cur_time_flag); */
+            }
+        }
+        // erases the block and sets the free state as 0xffffffff
+        erase_operation(ssd,channel,chip,die,plane,block);
+    }
+    
+    
 }
 /*
  * 函数的功能就是执行copyback命令的功能，

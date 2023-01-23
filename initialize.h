@@ -52,6 +52,10 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
  *一下定义了channel的空闲，命令地址传输，数据传输，传输，其他等状态
  *还有chip的空闲，写忙，读忙，命令地址传输，数据传输，擦除忙，copyback忙，其他等状态
  *还有读写子请求（sub）的等待，读命令地址传输，读，读数据传输，写命令地址传输，写数据传输，写传输，完成等状态
+
+ * Define the channel's idle, command address transmission, data transmission, transmission, other states
+ * There are also chip idle, write busy, read busy, command address transmission, data transmission, erase busy, copyback busy, other states, etc.
+ *There are also read and write sub-request (sub) waiting, read command address transmission, read, read data transmission, write command address transmission, write data transmission, write transmission, completion and other states
  ************************************************************************************************************/
 
 #define CHANNEL_IDLE 000
