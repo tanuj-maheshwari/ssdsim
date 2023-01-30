@@ -1260,8 +1260,8 @@ int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_
 
 /*
 
-delete page
-Simple deletion is implemented
+delete block
+Simple deletion of block is implemented 
 Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
 
 Takes block as input and deletes the block
@@ -1271,41 +1271,72 @@ Steps for deleting the block
 3. Mark the pages as free
 
 */
-int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
+int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
     // deletes the block(input)
-    unsigned int channel = 0, chip = 0, die = 0, plane = 0, page = 0;
-    unsigned int key_block = 0, key_page = 0;
+
+    //Error check 
+    int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
+    if(block<0 || block>=block_num){
+        return FAILURE; //block should be valid
+    }
+    
+    
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, page;
+    unsigned int key_block = 0, page_num = ssd->parameter->page_block;
     
     channel = sub->location->channel;
     chip = sub->location->chip;
     die = sub->location->die;
     plane = sub->location->plane;
-    
-    key_block = block - (block % ssd->parameter->block_chunk);
-    if(block==key_block){
-        // as it is key block we need to erase the page and define new keys 
-        // erases the block and sets the free state as 0xffffffff
-        erase_operation(ssd,channel,chip,die,plane,block);
-        //define new keys
-    }
-    else{
-        //if it is not key block we need to move the valid pages to a newer location
-        unsigned int chg_cur_time_flag = 1, flag=0;
 
-        for(int i = 0 ; i < ssd->parameter->page_block ; i++){// Traverse all the pages in the block 
-            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 1)//page is valid so we need to move the data to another location before erasing the block
-            {
-                // incomplete
-                //copy page i to another location
-                /* services_2_write(ssd, i, &flag, &chg_cur_time_flag); */
+    
+    
+    key_block = block - (block % block_num);
+    if(block==key_block){
+        // as it is key block all its pages contain keys
+        // Thus the input is incorrect i.e. block is invalid and we return FAILURE
+        return FAILURE;
+    }
+    
+    //if it is not key block we need to move the valid pages to a newer location
+    unsigned int chg_cur_time_flag = 1, flag=0;
+
+    for(page = 0 ; page < page_num ; page++){// Traverse all the pages in the block 
+        if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the block
+        {
+            //write page in block to another location
+            if(services_2_write(ssd, page, &flag, &chg_cur_time_flag)==FAILURE){
+                //if the write operation fails we return FAILURE
+                return FAILURE;
             }
         }
-        // erases the block and sets the free state as 0xffffffff
-        erase_operation(ssd,channel,chip,die,plane,block);
     }
-    
-    
+    // valid pages have been moved to a new location so we simply run the command of erasing block
+    // erases the block and sets the free state as 0xffffffff
+    if(erase_operation(ssd,channel,chip,die,plane,block)==SUCCESS)
+        return SUCCESS;
+    return FAILURE;
 }
+
+/*
+
+delete keys
+Simple deletion of keypage is implemented
+Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
+
+Takes keypage as input and deletes the keypage
+Steps for deleting the keypage
+1. Move the valid pages sharing the same key in the key page
+2. Deletes the key
+3. Mark the pages as invalid
+
+*/
+int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
+    
+
+}
+
+
 /*
  * 函数的功能就是执行copyback命令的功能，
  * The function of the function is to execute the function of the copyback command,
