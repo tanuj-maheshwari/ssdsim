@@ -1275,7 +1275,7 @@ int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned i
     // deletes the block(input)
 
     //Error check 
-    int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
+    unsigned int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
     if(block<0 || block>=block_num){
         return FAILURE; //block should be valid
     }
@@ -1328,12 +1328,53 @@ Takes keypage as input and deletes the keypage
 Steps for deleting the keypage
 1. Move the valid pages sharing the same key in the key page
 2. Deletes the key
-3. Mark the pages as invalid
+3. Mark the pages that share the same key as invalid
 
 */
-int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
-    
+int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned int page){
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block=0;
+    unsigned int key_block = 0;
+    unsigned int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
+    unsigned int page_num = ssd->parameter->page_block;
 
+    //check if the input is valid
+    if(page<0 || page>=page_num){
+        fprintf(stderr,"Enter valid page\n");
+        return FAILURE;
+    }
+    channel = sub->location->channel;
+    chip = sub->location->chip;
+    die = sub->location->die;
+    plane = sub->location->plane;
+    block = sub->location->block;
+    
+    key_block = block - (block % block_num);
+
+    unsigned int chg_cur_time_flag = 1, flag=0;
+
+    //we move all the pages that share same key as keypage to other valid location
+    for(unsigned int curr_block=0; curr_block<block_num; curr_block++){
+        if(curr_block!=key_block){
+            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the keypage
+            {
+                //write page to another location
+                if(services_2_write(ssd, page, &flag, &chg_cur_time_flag)==FAILURE){
+                    //if the write operation fails we return FAILURE
+                    return FAILURE;
+                }
+            }
+        }
+    }
+
+    //reprogram the key
+
+    //mark all the pages that share same key as invalid
+    for(int curr_block=0; curr_block<block_num; curr_block++){
+        if(curr_block!=key_block){
+            ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state = 0;
+        }
+    }
+    return SUCCESS;
 }
 
 
