@@ -1301,16 +1301,23 @@ int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned i
     //if it is not key block we need to move the valid pages to a newer location
     unsigned int chg_cur_time_flag = 1, flag=0;
 
-    for(page = 0 ; page < page_num ; page++){// Traverse all the pages in the block 
-        if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the block
-        {
-            //write page in block to another location
-            if(services_2_write(ssd, page, &flag, &chg_cur_time_flag)==FAILURE){
-                //if the write operation fails we return FAILURE
-                return FAILURE;
+    int free_page_num=ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].free_page_num;
+    
+    if(free_page_num){
+        if(services_2_write(ssd, channel, &flag, &chg_cur_time_flag)==FAILURE){
+            //if the write operation fails we return FAILURE
+            return FAILURE;
+        }
+        for(page = 0 ; page < page_num ; page++){// Traverse all the pages in the block 
+            
+            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the block
+            {
+                //write page in block to another location
+                
             }
         }
     }
+    
     // valid pages have been moved to a new location so we simply run the command of erasing block
     // erases the block and sets the free state as 0xffffffff
     if(erase_operation(ssd,channel,chip,die,plane,block)==SUCCESS)
@@ -1352,26 +1359,33 @@ int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned i
 
     unsigned int chg_cur_time_flag = 1, flag=0;
 
+    int free_page_num=0;
+
     //we move all the pages that share same key as keypage to other valid location
     for(unsigned int curr_block=0; curr_block<block_num; curr_block++){
         if(curr_block!=key_block){
             if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the keypage
             {
-                //write page to another location
-                if(services_2_write(ssd, page, &flag, &chg_cur_time_flag)==FAILURE){
-                    //if the write operation fails we return FAILURE
-                    return FAILURE;
-                }
+                free_page_num++;
+                
             }
         }
     }
-
+    if(free_page_num){
+        //write page to another location
+        if(services_2_write(ssd, channel, &flag, &chg_cur_time_flag)==FAILURE){
+            //if the write operation fails we return FAILURE
+            return FAILURE;
+        }
+    }
     //reprogram the key
 
     //mark all the pages that share same key as invalid
     for(int curr_block=0; curr_block<block_num; curr_block++){
         if(curr_block!=key_block){
             ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state = 0;
+            //increase the invalid page count of the bock
+            ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].invalid_page_num++;
         }
     }
     return SUCCESS;
@@ -1528,6 +1542,7 @@ Status static_write(struct ssd_info *ssd, unsigned int channel, unsigned int chi
 }
 
 /********************
+ * Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
   写子请求的处理函数 | Write handler for the subrequest
  *********************/
 Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag)
