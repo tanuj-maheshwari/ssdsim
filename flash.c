@@ -753,7 +753,7 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
             sub->location = loc;
             sub->ppn = ssd->dram->map->map_entry[lpn].pn;
             sub->next_state = SR_E_H_COMPUTE;
-            sub->next_state_predict_time = ssd->current_time + ac_timing.tHC;
+            sub->next_state_predict_time = MAX_INT64;
 
             // Add the subrequest to the end of the erase queue of the channel
             p_ch = &ssd->channel_head[loc->channel];
