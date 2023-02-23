@@ -74,6 +74,8 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define CHIP_WAIT 108
 #define CHIP_ERASE_BUSY 109
 #define CHIP_COPYBACK_BUSY 110
+#define CHIP_PAGEMOVE_BUSY 111
+#define CHIP_ERASEOP_WAITING 112
 #define UNKNOWN 111
 
 #define SR_WAIT 200
@@ -83,9 +85,13 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define SR_W_C_A_TRANSFER 204
 #define SR_W_DATA_TRANSFER 205
 #define SR_W_TRANSFER 206
-#define SR_E_H_COMPUTE 207 // Heuristic computation
-#define SR_E_P_MOVE 208    // Page movement
+#define SR_E_HC_PM_COMPUTE 207 // Heuristic computation & Page movement
+#define SR_E_ERASE 208         // Actual erase operation performing (key remove or block erase)
+#define SR_E_DISC 209          // Discarded delete requests
 #define SR_COMPLETE 299
+
+#define ERASE_TYPE_KEY 0   // Key is being deleted for erase operation
+#define ERASE_TYPE_BLOCK 1 // Block is being erased for erase operation
 
 #define REQUEST_IN 300 // 下一条请求到达的时间
 #define OUTPUT 301     // 下一次数据输出的时间
@@ -452,6 +458,9 @@ struct sub_request
     // Read requests do not need this member, and lsn plus size can identify the status of the page; but write requests require this member, most of the write sub-requests come from the buffer write-back operation, and there may be situations similar to the discontinuity of sub-pages, so it is necessary to maintain the member alone
 
     unsigned int key_generated_flag; // Indicates whether a key was generated for this subrequest. Only write requests need to generate keys, and read requests do not need to generate keys.
+
+    unsigned int num_pages_move; // The number of pages that need to be moved when an erase subrequest is processed.
+    unsigned int erase_type;     // Weather key is deleted or block is erased.
 
     int64_t begin_time;    // Subrequest start time
     int64_t complete_time; // Record the processing time of the sub-request, that is, the time when the data is actually written or read

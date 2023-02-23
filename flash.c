@@ -720,7 +720,6 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
         sub->key_generated_flag = 0; // Keys are never generated for erase requests
         sub->begin_time = ssd->current_time;
         sub->current_time = ssd->current_time;
-        sub->current_state = SR_WAIT;
         sub->lpn = lpn;
         sub->size = size;
 
@@ -729,6 +728,7 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
          */
         if (ssd->dram->map->map_entry[lpn].state == 0)
         {
+            sub->current_state = SR_E_DISC;
             sub->location = NULL;
             sub->ppn = 0;
             sub->next_state = SR_COMPLETE;
@@ -749,10 +749,11 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
         }
         else
         {
+            sub->current_state = SR_WAIT;
             loc = find_location(ssd, ssd->dram->map->map_entry[lpn].pn);
             sub->location = loc;
             sub->ppn = ssd->dram->map->map_entry[lpn].pn;
-            sub->next_state = SR_E_H_COMPUTE;
+            sub->next_state = SR_E_HC_PM_COMPUTE;
             sub->next_state_predict_time = MAX_INT64;
 
             // Add the subrequest to the end of the erase queue of the channel
@@ -1263,12 +1264,12 @@ int services_2_r_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *
                     go_one_step(ssd, sub, NULL, SR_R_C_A_TRANSFER, NORMAL);
 
                     *change_current_time_flag = 0;
-                    *channel_busy_flag = 1; /*已经占用了这个周期的总线，不用执行die中数据的回传*/
+                    *channel_busy_flag = 1; /*已经占用了这个周期的总线，不用执行die中数据的回传 | The bus that has already occupied this cycle does not need to perform the return of the data in the die*/
                     break;
                 }
                 else
                 {
-                    /*因为die的busy导致的阻塞*/
+                    /*因为die的busy导致的阻塞 | Blockage caused by die's busy*/
                 }
             }
             sub = sub->next_node;
@@ -1789,6 +1790,102 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
     return SUCCESS;
 }
 
+/**
+ * @brief Function that manages the erase subrequests, moves non-discared requests from SR_WAIT state to SR_E_HC_PM state
+ * @param ssd SSD info
+ * @param channel Channel number
+ * @param channel_busy_flag Flag that indicates if the channel is busy
+ * @param change_current_time_flag Flag for adjuusting the current time
+ * @return Status
+ */
+Status services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag)
+{
+    struct sub_request *sub = NULL;
+    sub = ssd->channel_head[channel].subs_e_head;
+
+    if (ssd->channel_head[channel].subs_e_head != NULL)
+    {
+        while (sub != NULL) /*if there are erase requests in queue, send one of them to target chip*/
+        {
+            if (sub->current_state == SR_WAIT)
+            {
+                /*Chip must be idle for erase operation initiation*/
+                if ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].current_state == CHIP_IDLE) || ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state == CHIP_IDLE) &&
+                                                                                                                              (ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state_predict_time <= ssd->current_time)))
+                {
+                    // TODO
+                    /**
+                     * @brief Hueristic calculation (number of pages to be moved)
+                     * After this, the next_state_predict_time could be set
+                     * This should also set sub->num_pages_move and sub->erase_type
+                     */
+                    go_one_step(ssd, sub, NULL, SR_E_HC_PM_COMPUTE, NORMAL);
+
+                    *change_current_time_flag = 0;
+                    break;
+                }
+                else
+                {
+                    /*因为die的busy导致的阻塞 | Blockage caused by die's busy*/
+                }
+            }
+            sub = sub->next_node;
+        }
+    }
+    return SUCCESS;
+}
+
+/**
+ * @brief Function that completes the erase subrequests
+ * @param ssd SSD info
+ * @param channel Channel number
+ * @param channel_busy_flag Flag that indicates if the channel is busy
+ * @param change_current_time_flag Flag for adjuusting the current time
+ * @return Status
+ */
+Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag)
+{
+    struct sub_request *sub = NULL;
+    sub = ssd->channel_head[channel].subs_e_head;
+
+    if (ssd->channel_head[channel].subs_e_head != NULL)
+    {
+        while (sub != NULL) /*if there are erase requests in queue, send one of them to target chip*/
+        {
+            if (sub->current_state == SR_E_HC_PM_COMPUTE)
+            {
+                /*Complete erase operation only if chip is waiting in the CHIP_ERASEOP_WAITING state*/
+                if ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].current_state == CHIP_ERASEOP_WAITING) || ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state == CHIP_ERASEOP_WAITING) &&
+                                                                                                                                         (ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state_predict_time <= ssd->current_time)))
+                {
+                    /*If block needs to be erased, channel doesn't need to be empty*/
+                    if (sub->erase_type == ERASE_TYPE_BLOCK)
+                    {
+                        go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
+                        *change_current_time_flag = 0;
+                        break;
+                    }
+
+                    else if (sub->erase_type == ERASE_TYPE_KEY)
+                    {
+                        /*For reprogramming key, channel must be idle*/
+                        if ((ssd->channel_head[sub->location->channel].current_state == CHANNEL_IDLE) || ((ssd->channel_head[sub->location->channel].next_state == CHANNEL_IDLE) &&
+                                                                                                          (ssd->channel_head[sub->location->channel].next_state_predict_time <= ssd->current_time)))
+                        {
+                            go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
+                            *change_current_time_flag = 0;
+                            *channel_busy_flag = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+            sub = sub->next_node;
+        }
+    }
+    return SUCCESS;
+}
+
 /********************************************************
  *这个函数的主要功能是主控读子请求和写子请求的状态变化处理
  *======================================================
@@ -1827,7 +1924,8 @@ struct ssd_info *process(struct ssd_info *ssd)
      **********************************************************/
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
-        if ((ssd->channel_head[i].subs_r_head == NULL) && (ssd->channel_head[i].subs_w_head == NULL) && (ssd->subs_w_head == NULL))
+        // No need to check for completed erase requests, as they are deleted immediately
+        if ((ssd->channel_head[i].subs_r_head == NULL) && (ssd->channel_head[i].subs_w_head == NULL) && (ssd->subs_w_head == NULL) && (ssd->channel_head[i].subs_e_head == NULL))
         {
             flag = 1;
         }
@@ -1887,11 +1985,26 @@ struct ssd_info *process(struct ssd_info *ssd)
             sub = ssd->channel_head[i].subs_r_head;               /*先处理读请求*/
             services_2_r_wait(ssd, i, &flag, &chg_cur_time_flag); /*处理处于等待状态的读子请求 | Handling read child requests in wait state*/
 
-            if ((flag == 0) && (ssd->channel_head[i].subs_r_head != NULL)) /*if there are no new read request and data is ready in some dies, send these data to controller and response this request*/
+            /*if there are no new read request and data is ready in some dies, send these data to controller and response this request*/
+            if ((flag == 0) && (ssd->channel_head[i].subs_r_head != NULL))
             {
                 services_2_r_data_trans(ssd, i, &flag, &chg_cur_time_flag);
             }
-            if (flag == 0) /*if there are no read request to take channel, we can serve write requests*/
+
+            /*Handling erase requests in wait state*/
+            services_2_e_wait(ssd, i, &flag, &chg_cur_time_flag);
+
+            /**
+             * @brief Handling completion of each erase request one by one
+             * Here, as page move is done via an operation similar to copyback, channel is not occupied
+             */
+            if (ssd->channel_head[i].subs_e_head != NULL)
+            {
+                services_2_e_comp(ssd, i, &flag, &chg_cur_time_flag);
+            }
+
+            /*if there are no read or erase request to take channel, we can serve write requests*/
+            if (flag == 0)
             {
                 services_2_write(ssd, i, &flag, &chg_cur_time_flag);
             }
@@ -3783,6 +3896,8 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
             /*****************************************************************************************************
              *这个目标状态是指flash处于读数据的状态，sub的下一状态就应该是传送数据SR_R_DATA_TRANSFER
              *这时与channel无关，只与chip有关所以要修改chip的状态为CHIP_READ_BUSY，下一个状态就是CHIP_DATA_TRANSFER
+             *This target state means that the flash is in the state of reading data, and the next state of sub should be to transmit data SR_R_DATA_TRANSFER
+             *At this time, it has nothing to do with the channel, but only with the chip, so the state of the chip needs to be changed to CHIP_READ_BUSY, and the next state is CHIP_DATA_TRANSFER
              ******************************************************************************************************/
             sub->current_time = ssd->current_time;
             sub->current_state = SR_R_READ;
@@ -3887,6 +4002,69 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
             ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
             ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
             ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = time + ssd->parameter->time_characteristics.tPROG;
+
+            break;
+        }
+        case SR_E_HC_PM_COMPUTE:
+        {
+            /**
+             * @brief This is the calculation of state transition and time when processing erase sub-requests
+             * Here, the state changes from SR_WAIT to SR_E_HC_PM_COMPUTE (Heuristic Compute and Page Move)
+             * As copyback is used to move pages, only the state of the chip is changed to CHIP_PAGEMOVE_BUSY
+             * Channel is not being occupied
+             */
+            sub->current_time = ssd->current_time;
+            sub->current_state = SR_E_HC_PM_COMPUTE;
+            sub->next_state = SR_E_ERASE;
+            sub->next_state_predict_time = ssd->current_time + 7 * ssd->parameter->time_characteristics.tWC;
+            sub->next_state_predict_time += ssd->parameter->time_characteristics.tHC;
+            sub->next_state_predict_time += (sub->num_pages_move * ssd->parameter->time_characteristics.tPM);
+
+            ssd->channel_head[location->channel].chip_head[location->chip].current_state = CHIP_PAGEMOVE_BUSY;
+            ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
+            ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_ERASEOP_WAITING;
+            ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->next_state_predict_time;
+
+            break;
+        }
+        case SR_E_ERASE:
+        {
+            /**
+             * @brief This concludes the completion of the erase sub-request
+             * Here, the state changes from SR_E_HC_PM_COMPUTE to SR_E_ERASE, and the next state will be SR_COMPLETE
+             * Here, two cases arise :-
+             * 1. If key delete happens, both channel and chip are busy. Here, channel is in CHANNEL_TRANSFER state and chip is in CHIP_WRITE_BUSY state
+             * 2. If block erase happens, only the chip is busy. Here, the chip is in CHIP_ERASE_BUSY state
+             */
+            sub->current_time = ssd->current_time;
+            sub->current_state = SR_E_ERASE;
+            sub->next_state = SR_COMPLETE;
+
+            if (sub->erase_type == ERASE_TYPE_KEY)
+            {
+                sub->next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tPROG;
+                sub->complete_time = sub->next_state_predict_time;
+
+                ssd->channel_head[location->channel].current_state = CHANNEL_TRANSFER;
+                ssd->channel_head[location->channel].current_time = ssd->current_time;
+                ssd->channel_head[location->channel].next_state = CHANNEL_IDLE;
+                ssd->channel_head[location->channel].next_state_predict_time = sub->complete_time;
+
+                ssd->channel_head[location->channel].chip_head[location->chip].current_state = CHIP_WRITE_BUSY;
+                ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
+                ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
+                ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->complete_time;
+            }
+            else if (sub->erase_type == ERASE_TYPE_BLOCK)
+            {
+                sub->next_state_predict_time = ssd->current_time + ssd->parameter->time_characteristics.tBERS;
+                sub->complete_time = sub->next_state_predict_time;
+
+                ssd->channel_head[location->channel].chip_head[location->chip].current_state = CHIP_ERASE_BUSY;
+                ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
+                ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
+                ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->complete_time;
+            }
 
             break;
         }
