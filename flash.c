@@ -779,7 +779,7 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
     {
         ssd->write_subreq_count++;
     }
-    else
+    else if (operation == ERASE)
     {
         ssd->erase_subreq_count++;
     }

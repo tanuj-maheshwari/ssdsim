@@ -534,7 +534,7 @@ int get_requests(struct ssd_info *ssd)
         ssd->ave_write_size = (ssd->ave_write_size * ssd->write_request_count + request1->size) / (ssd->write_request_count + 1);
         ssd->write_request_size += request1->size;
     }
-    else
+    else if (request1->operation == ERASE)
     {
         ssd->ave_erase_size = (ssd->ave_erase_size * ssd->erase_request_count + request1->size) / (ssd->erase_request_count + 1);
         ssd->erase_request_size += request1->size;
@@ -867,7 +867,7 @@ void trace_output(struct ssd_info *ssd)
                 ssd->write_request_count++;
                 ssd->write_avg = ssd->write_avg + (req->response_time - req->time);
             }
-            else
+            else if (req->operation == ERASE)
             {
                 ssd->erase_request_count++;
                 ssd->erase_avg = ssd->erase_avg + (req->response_time - req->time);
@@ -977,7 +977,7 @@ void trace_output(struct ssd_info *ssd)
                     ssd->write_request_count++;
                     ssd->write_avg = ssd->write_avg + (end_time - req->time);
                 }
-                else
+                else if (req->operation == ERASE)
                 {
                     ssd->erase_request_count++;
                     ssd->erase_avg = ssd->erase_avg + (end_time - req->time);
