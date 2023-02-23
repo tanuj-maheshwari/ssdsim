@@ -824,7 +824,7 @@ struct sub_request *find_write_sub_request(struct ssd_info *ssd, unsigned int ch
             {
                 if (sub->update != NULL) /*如果有需要提前读出的页*/
                 {
-                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) //被更新的页已经被读出
+                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) // 被更新的页已经被读出
                     {
                         break;
                     }
@@ -892,7 +892,7 @@ struct sub_request *find_write_sub_request(struct ssd_info *ssd, unsigned int ch
             {
                 if (sub->update != NULL)
                 {
-                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) //被更新的页已经被读出
+                    if ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))) // 被更新的页已经被读出
                     {
                         break;
                     }
@@ -1754,7 +1754,7 @@ struct ssd_info *dynamic_advanced_process(struct ssd_info *ssd, unsigned int cha
         {
             if (sub->current_state == SR_WAIT)
             {
-                if ((sub->update == NULL) || ((sub->update != NULL) && ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))))) //没有需要提前读出的页
+                if ((sub->update == NULL) || ((sub->update != NULL) && ((sub->update->current_state == SR_COMPLETE) || ((sub->update->next_state == SR_COMPLETE) && (sub->update->next_state_predict_time <= ssd->current_time))))) // 没有需要提前读出的页
                 {
                     subs[subs_count] = sub;
                     subs_count++;
@@ -2896,11 +2896,11 @@ struct ssd_info *flash_page_state_modify(struct ssd_info *ssd, struct sub_reques
     {
         ppn = ssd->dram->map->map_entry[sub->lpn].pn;
         location = find_location(ssd, ppn);
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; //表示某一页失效，同时标记valid和free状态都为0
-        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  //表示某一页失效，同时标记valid和free状态都为0
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; // 表示某一页失效，同时标记valid和free状态都为0
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].free_state = 0;  // 表示某一页失效，同时标记valid和free状态都为0
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn = 0;
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num++;
-        if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num == ssd->parameter->page_block) //该block中全是invalid的页，可以直接删除
+        if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].invalid_page_num == ssd->parameter->page_block) // 该block中全是invalid的页，可以直接删除
         {
             new_direct_erase = (struct direct_erase *)malloc(sizeof(struct direct_erase));
             alloc_assert(new_direct_erase, "new_direct_erase");

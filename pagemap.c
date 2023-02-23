@@ -38,7 +38,7 @@ void file_assert(int error, char *s)
 /*****************************************************
  *断言,当申请内存空间失败时，输出“malloc 变量名 error”
  ******************************************************/
-void alloc_assert(void *p, char *s) //断言
+void alloc_assert(void *p, char *s) // 断言
 {
     if (p != NULL)
         return;
@@ -52,7 +52,7 @@ void alloc_assert(void *p, char *s) //断言
  *A，读到的time_t，device，lsn，size，ope都<0时，输出“trace error:.....”
  *B，读到的time_t，device，lsn，size，ope都=0时，输出“probable read a blank line”
  **********************************************************************************/
-void trace_assert(int64_t time_t, int device, unsigned int lsn, int size, int ope) //断言
+void trace_assert(int64_t time_t, int device, unsigned int lsn, int size, int ope) // 断言
 {
     if (time_t < 0 || device < 0 || lsn < 0 || size < 0 || ope < 0)
     {

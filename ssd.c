@@ -602,7 +602,7 @@ struct ssd_info *buffer_management(struct ssd_info *ssd)
                 }
 
                 if (flag == 1)
-                { //如果该buffer节点不在buffer的队首，需要将这个节点提到队首，实现了LRU算法，这个是一个双向队列。
+                { // 如果该buffer节点不在buffer的队首，需要将这个节点提到队首，实现了LRU算法，这个是一个双向队列。
                     if (ssd->dram->buffer->buffer_head != buffer_node)
                     {
                         if (ssd->dram->buffer->buffer_tail == buffer_node)
@@ -737,7 +737,7 @@ struct ssd_info *distribute(struct ssd_info *ssd)
     {
         if (req->distri_flag == 0)
         {
-            //如果还有一些读请求需要处理 | If there are still some read requests that need to be processed
+            // 如果还有一些读请求需要处理 | If there are still some read requests that need to be processed
             if (req->complete_lsn_count != ssd->request_tail->size)
             {
                 first_lsn = req->lsn;
