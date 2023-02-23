@@ -734,6 +734,18 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
             sub->next_state = SR_COMPLETE;
             sub->next_state_predict_time = ssd->current_time + 1000;
             sub->complete_time = ssd->current_time + 1000;
+
+            // Add the subrequest to the end of the erase completion queue
+            if (ssd->subs_e_c_tail != NULL)
+            {
+                ssd->subs_e_c_tail->next_node = sub;
+                ssd->subs_e_c_tail = sub;
+            }
+            else
+            {
+                ssd->subs_e_c_head = sub;
+                ssd->subs_e_c_tail = sub;
+            }
         }
         else
         {
@@ -742,6 +754,19 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
             sub->ppn = ssd->dram->map->map_entry[lpn].pn;
             sub->next_state = SR_E_H_COMPUTE;
             sub->next_state_predict_time = ssd->current_time + ac_timing.tHC;
+
+            // Add the subrequest to the end of the erase queue of the channel
+            p_ch = &ssd->channel_head[loc->channel];
+            if (p_ch->subs_e_tail != NULL)
+            {
+                p_ch->subs_e_tail->next_node = sub;
+                p_ch->subs_e_tail = sub;
+            }
+            else
+            {
+                p_ch->subs_e_head = sub;
+                p_ch->subs_e_tail = sub;
+            }
         }
     }
     else

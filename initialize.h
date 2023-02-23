@@ -272,6 +272,8 @@ struct ssd_info
     struct request *request_tail;    // the tail of the request queue
     struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上 | When using full dynamic allocation, the allocation does not know which channel should be mounted, so first hang on the ssd, and then hang on the read request queue of the corresponding channel when entering the process function
     struct sub_request *subs_w_tail;
+    struct sub_request *subs_e_c_head; // Erase subrequests which are already completed (because of invalidity of page) are hanged on this queue
+    struct sub_request *subs_e_c_tail;
     struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间 | Event queue, each time a new event is generated, it is added to this queue in chronological order, and at the end of the simulate function, the time is determined according to the time at the head of this queue
     struct channel_info *channel_head; // 指向channel结构体数组的首地址
 };
@@ -294,6 +296,8 @@ struct channel_info
     struct sub_request *subs_r_tail; // At the end of the reading request queue on Channel, the newly -entered sub -request is added to the end of the team
     struct sub_request *subs_w_head; // The write request queue head on the channel, the sub-request at the queue head is served first
     struct sub_request *subs_w_tail; // The write request queue on the channel, the newly added sub-request is added to the end of the queue
+    struct sub_request *subs_e_head; // The erase request queue head on the channel, the sub-request at the queue head is served first
+    struct sub_request *subs_e_tail; // The erase request queue on the channel, the newly added sub-request is added to the end of the queue
     struct gc_operation *gc_command; // Record where gc needs to be generated
     struct chip_info *chip_head;
 };
