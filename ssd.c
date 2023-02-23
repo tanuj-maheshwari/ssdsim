@@ -529,10 +529,15 @@ int get_requests(struct ssd_info *ssd)
         ssd->ave_read_size = (ssd->ave_read_size * ssd->read_request_count + request1->size) / (ssd->read_request_count + 1);
         ssd->read_request_size += request1->size;
     }
-    else
+    else if (request1->operation == WRITE)
     {
         ssd->ave_write_size = (ssd->ave_write_size * ssd->write_request_count + request1->size) / (ssd->write_request_count + 1);
         ssd->write_request_size += request1->size;
+    }
+    else
+    {
+        ssd->ave_erase_size = (ssd->ave_erase_size * ssd->erase_request_count + request1->size) / (ssd->erase_request_count + 1);
+        ssd->erase_request_size += request1->size;
     }
 
     filepoint = ftell(ssd->tracefile);
@@ -857,10 +862,15 @@ void trace_output(struct ssd_info *ssd)
                 ssd->read_request_count++;
                 ssd->read_avg = ssd->read_avg + (req->response_time - req->time);
             }
-            else
+            else if (req->operation == WRITE)
             {
                 ssd->write_request_count++;
                 ssd->write_avg = ssd->write_avg + (req->response_time - req->time);
+            }
+            else
+            {
+                ssd->erase_request_count++;
+                ssd->erase_avg = ssd->erase_avg + (req->response_time - req->time);
             }
 
             if (pre_node == NULL)
@@ -962,10 +972,15 @@ void trace_output(struct ssd_info *ssd)
                     ssd->read_request_count++;
                     ssd->read_avg = ssd->read_avg + (end_time - req->time);
                 }
-                else
+                else if (req->operation == WRITE)
                 {
                     ssd->write_request_count++;
                     ssd->write_avg = ssd->write_avg + (end_time - req->time);
+                }
+                else
+                {
+                    ssd->erase_request_count++;
+                    ssd->erase_avg = ssd->erase_avg + (end_time - req->time);
                 }
 
                 while (req->subs != NULL)
@@ -1520,7 +1535,7 @@ struct ssd_info *warmup(struct ssd_info *ssd)
 /*********************************************************************************************
  *no_buffer_distribute()函数是处理当ssd没有dram的时候，
  *这是读写请求就不必再需要在buffer里面寻找，直接利用creat_sub_request()函数创建子请求，再处理。
- *The no_buffer_distribute() function is used when ssd has no dram. This is a read/write request.
+ *The no_buffer_distribute() function is used when ssd has no dram. This is a read/write/erase request.
  *You don't need to look in the buffer. You can use the creat_sub_request() function to create
  *a subrequest and then process it.
  *********************************************************************************************/
@@ -1574,6 +1589,16 @@ struct ssd_info *no_buffer_distribute(struct ssd_info *ssd)
             sub_size = size(state);
 
             sub = creat_sub_request(ssd, lpn, sub_size, state, req, req->operation);
+            lpn++;
+        }
+    }
+    else if (req->operation == ERASE)
+    {
+        while (lpn <= last_lpn)
+        {
+            sub_state = (ssd->dram->map->map_entry[lpn].state & 0x7fffffff);
+            sub_size = size(sub_state);
+            sub = creat_sub_request(ssd, lpn, sub_size, sub_state, req, req->operation);
             lpn++;
         }
     }

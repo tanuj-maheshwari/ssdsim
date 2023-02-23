@@ -714,6 +714,36 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
             return NULL;
         }
     }
+    else if (operation == ERASE)
+    {
+        sub->operation = ERASE;
+        sub->key_generated_flag = 0; // Keys are never generated for erase requests
+        sub->begin_time = ssd->current_time;
+        sub->current_time = ssd->current_time;
+        sub->current_state = SR_WAIT;
+        sub->lpn = lpn;
+        sub->size = size;
+
+        /**
+         * @brief If the page is not valid, then the erase operation is complete.
+         */
+        if (ssd->dram->map->map_entry[lpn].state == 0)
+        {
+            sub->location = NULL;
+            sub->ppn = 0;
+            sub->next_state = SR_COMPLETE;
+            sub->next_state_predict_time = ssd->current_time + 1000;
+            sub->complete_time = ssd->current_time + 1000;
+        }
+        else
+        {
+            loc = find_location(ssd, ssd->dram->map->map_entry[lpn].pn);
+            sub->location = loc;
+            sub->ppn = ssd->dram->map->map_entry[lpn].pn;
+            sub->next_state = SR_E_H_COMPUTE;
+            sub->next_state_predict_time = ssd->current_time + ac_timing.tHC;
+        }
+    }
     else
     {
         free(sub->location);
@@ -745,9 +775,13 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
     {
         ssd->read_subreq_count++;
     }
-    if (operation == WRITE)
+    else if (operation == WRITE)
     {
         ssd->write_subreq_count++;
+    }
+    else
+    {
+        ssd->erase_subreq_count++;
     }
 
     return sub;

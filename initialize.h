@@ -47,6 +47,7 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 
 #define READ 1
 #define WRITE 0
+#define ERASE 2
 
 /*********************************all states of each objects************************************************
  *一下定义了channel的空闲，命令地址传输，数据传输，传输，其他等状态
@@ -82,6 +83,8 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define SR_W_C_A_TRANSFER 204
 #define SR_W_DATA_TRANSFER 205
 #define SR_W_TRANSFER 206
+#define SR_E_H_COMPUTE 207 // Heuristic computation
+#define SR_E_P_MOVE 208    // Page movement
 #define SR_COMPLETE 299
 
 #define REQUEST_IN 300 // 下一条请求到达的时间
@@ -172,6 +175,8 @@ struct ac_time_characteristics
     int tWHR;  // WE high to RE low
     int tRST;  // device resetting time
     int tKG;   // key generation time
+    int tHC;   // Heuristic computation time
+    int tPM;   // Page movement time
 } ac_timing;
 
 struct ssd_info
@@ -201,15 +206,19 @@ struct ssd_info
 
     unsigned int write_request_count; // 记录写操作的次数
     unsigned int read_request_count;  // 记录读操作的次数
+    unsigned int erase_request_count; // 记录擦除操作的次数
     int64_t write_avg;                // 记录用于计算写请求平均响应时间的时间
     int64_t read_avg;                 // 记录用于计算读请求平均响应时间的时间
+    int64_t erase_avg;                // 记录用于计算擦除请求平均响应时间的时间
 
     unsigned int write_request_size; // total write size in bytes
     unsigned int read_request_size;  // total read size in bytes
+    unsigned int erase_request_size; // total erase size in bytes
     unsigned int in_program_size;    // total internal write (program) size in bytes
     unsigned int in_read_size;       // total internal read size in bytes
     unsigned int write_subreq_count;
     unsigned int read_subreq_count;
+    unsigned int erase_subreq_count;
     unsigned int gc_move_page;
 
     unsigned int min_lsn;
@@ -234,6 +243,7 @@ struct ssd_info
     unsigned long waste_page_count;  // 记录因为高级命令的限制导致的页浪费 | Recording page waste due to limitations of advanced commands
     float ave_read_size;
     float ave_write_size;
+    float ave_erase_size;
     unsigned int request_queue_length;
     unsigned int update_read_count; // 记录因为更新操作导致的额外读出操作 | Record additional read operations due to update operations
 
@@ -260,9 +270,9 @@ struct ssd_info
     struct dram_info *dram;
     struct request *request_queue;   // dynamic request queue
     struct request *request_tail;    // the tail of the request queue
-    struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上
+    struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上 | When using full dynamic allocation, the allocation does not know which channel should be mounted, so first hang on the ssd, and then hang on the read request queue of the corresponding channel when entering the process function
     struct sub_request *subs_w_tail;
-    struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间
+    struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间 | Event queue, each time a new event is generated, it is added to this queue in chronological order, and at the end of the simulate function, the time is determined according to the time at the head of this queue
     struct channel_info *channel_head; // 指向channel结构体数组的首地址
 };
 
