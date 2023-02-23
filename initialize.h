@@ -80,8 +80,8 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define SR_W_TRANSFER 206
 #define SR_COMPLETE 299
 
-#define REQUEST_IN 300 //下一条请求到达的时间
-#define OUTPUT 301     //下一次数据输出的时间
+#define REQUEST_IN 300 // 下一条请求到达的时间
+#define OUTPUT 301     // 下一次数据输出的时间
 
 #define GC_WAIT 400
 #define GC_ERASE_C_A 401
@@ -185,20 +185,20 @@ struct ssd_info
     int64_t pre_process_time; // Time for pre-processing read requests
 
     double ssd_energy;    // SSD的能耗，是时间和芯片数的函数,能耗因子
-    int64_t current_time; //记录系统时间
+    int64_t current_time; // 记录系统时间
     int64_t next_request_time;
-    unsigned int real_time_subreq; //记录实时的写请求个数，用在全动态分配时，channel优先的情况
+    unsigned int real_time_subreq; // 记录实时的写请求个数，用在全动态分配时，channel优先的情况
     int flag;
-    int active_flag; //记录主动写是否阻塞，如果发现柱塞，需要将时间向前推进,0表示没有阻塞，1表示被阻塞，需要向前推进时间
+    int active_flag; // 记录主动写是否阻塞，如果发现柱塞，需要将时间向前推进,0表示没有阻塞，1表示被阻塞，需要向前推进时间
     unsigned int page;
 
     unsigned int token;      // In dynamic allocation, in order to prevent each Channel from being assigned to maintain a token, start allocation from the position referred to by the token at each time
-    unsigned int gc_request; //记录在SSD中，当前时刻有多少gc操作的请求
+    unsigned int gc_request; // 记录在SSD中，当前时刻有多少gc操作的请求
 
-    unsigned int write_request_count; //记录写操作的次数
-    unsigned int read_request_count;  //记录读操作的次数
-    int64_t write_avg;                //记录用于计算写请求平均响应时间的时间
-    int64_t read_avg;                 //记录用于计算读请求平均响应时间的时间
+    unsigned int write_request_count; // 记录写操作的次数
+    unsigned int read_request_count;  // 记录读操作的次数
+    int64_t write_avg;                // 记录用于计算写请求平均响应时间的时间
+    int64_t read_avg;                 // 记录用于计算读请求平均响应时间的时间
 
     unsigned int write_request_size; // total write size in bytes
     unsigned int read_request_size;  // total read size in bytes
@@ -226,12 +226,12 @@ struct ssd_info
     unsigned long interleave_mplane_erase_count;
     unsigned long gc_copy_back;
     unsigned long num_gc;
-    unsigned long write_flash_count; //实际产生的对flash的写操作 | The actual write to flash
-    unsigned long waste_page_count;  //记录因为高级命令的限制导致的页浪费 | Recording page waste due to limitations of advanced commands
+    unsigned long write_flash_count; // 实际产生的对flash的写操作 | The actual write to flash
+    unsigned long waste_page_count;  // 记录因为高级命令的限制导致的页浪费 | Recording page waste due to limitations of advanced commands
     float ave_read_size;
     float ave_write_size;
     unsigned int request_queue_length;
-    unsigned int update_read_count; //记录因为更新操作导致的额外读出操作 | Record additional read operations due to update operations
+    unsigned int update_read_count; // 记录因为更新操作导致的额外读出操作 | Record additional read operations due to update operations
 
     char parameterfilename[80];
     char tracefilename[80];
@@ -256,10 +256,10 @@ struct ssd_info
     struct dram_info *dram;
     struct request *request_queue;   // dynamic request queue
     struct request *request_tail;    // the tail of the request queue
-    struct sub_request *subs_w_head; //当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上
+    struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上
     struct sub_request *subs_w_tail;
-    struct event_node *event;          //事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间
-    struct channel_info *channel_head; //指向channel结构体数组的首地址
+    struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间
+    struct channel_info *channel_head; // 指向channel结构体数组的首地址
 };
 
 struct channel_info
@@ -364,7 +364,7 @@ struct dram_info
  **********************************************************************************************/
 typedef struct buffer_group
 {
-    TREE_NODE node;                     //树节点的结构一定要放在用户自定义结构的最前面，注意!
+    TREE_NODE node;                     // 树节点的结构一定要放在用户自定义结构的最前面，注意!
     struct buffer_group *LRU_link_next; // next node in LRU list
     struct buffer_group *LRU_link_pre;  // previous node in LRU list
 
@@ -384,15 +384,15 @@ struct dram_parameter
 
 struct map_info
 {
-    struct entry *map_entry;         //该项是映射表结构体指针,each entry indicate a mapping information
+    struct entry *map_entry;         // 该项是映射表结构体指针,each entry indicate a mapping information
     struct buffer_info *attach_info; // info about attach map
 };
 
 struct controller_info
 {
-    unsigned int frequency; //表示该控制器的工作频率
-    int64_t clock_time;     //表示一个时钟周期的时间
-    float power;            //表示控制器单位时间的能耗
+    unsigned int frequency; // 表示该控制器的工作频率
+    int64_t clock_time;     // 表示一个时钟周期的时间
+    float power;            // 表示控制器单位时间的能耗
 };
 
 struct request
@@ -458,7 +458,7 @@ struct event_node
 struct parameter_value
 {
     unsigned int chip_num;      // How many particles are in a SSD
-    unsigned int dram_capacity; //记录SSD中DRAM capacity
+    unsigned int dram_capacity; // 记录SSD中DRAM capacity
     unsigned int cpu_sdram;     // How much is there in the documentary
 
     unsigned int channel_number;    // How many channels are there in SSD, each channel is separate bus
@@ -475,14 +475,14 @@ struct parameter_value
     unsigned int page_capacity;
     unsigned int subpage_capacity;
 
-    unsigned int ers_limit;  //记录每个块可擦除的次数
-    int address_mapping;     //记录映射的类型，1：page；2：block；3：fast
+    unsigned int ers_limit;  // 记录每个块可擦除的次数
+    int address_mapping;     // 记录映射的类型，1：page；2：block；3：fast
     int wear_leveling;       // WL算法
-    int gc;                  //记录gc策略
-    int clean_in_background; //清除操作是否在前台完成
+    int gc;                  // 记录gc策略
+    int clean_in_background; // 清除操作是否在前台完成
     int alloc_pool;          // allocation pool 大小(plane，die，chip，channel),也就是拥有active_block的单位
     float overprovide;
-    float gc_threshold; //当达到这个阈值时，开始GC操作，在主动写策略中，开始GC操作后可以临时中断GC操作，服务新到的请求；在普通策略中，GC不可中断
+    float gc_threshold; // 当达到这个阈值时，开始GC操作，在主动写策略中，开始GC操作后可以临时中断GC操作，服务新到的请求；在普通策略中，GC不可中断
 
     double operating_current; // NAND FLASH的工作电流单位是uA
     double supply_voltage;
@@ -492,14 +492,14 @@ struct parameter_value
     double dram_voltage;         // cpu sdram work voltage  V
 
     int buffer_management;    // indicates that there are buffer management or not
-    int scheduling_algorithm; //记录使用哪种调度算法，1:FCFS
+    int scheduling_algorithm; // 记录使用哪种调度算法，1:FCFS
     float quick_radio;
     int related_mapping;
 
     unsigned int time_step;
     unsigned int small_large_write; // the threshould of large write, large write do not occupt buffer, which is written back to flash directly
 
-    int striping; //表示是否使用了striping方式，0表示没有，1表示有
+    int striping; // 表示是否使用了striping方式，0表示没有，1表示有
     int interleaving;
     int pipelining;
     int threshold_fixed_adjust;
@@ -516,7 +516,7 @@ struct parameter_value
     int greed_MPW_ad; // 0 don't use multi-plane write advanced commands greedily; 1 use multi-plane write advanced commands greedily
     int aged;         // 1 means that you need to turn this SSD into aged, 0 means that you need to keep this SSD NON-AGED
     float aged_ratio;
-    int queue_length; //请求队列的长度限制
+    int queue_length; // 请求队列的长度限制
 
     struct ac_time_characteristics time_characteristics;
 };
@@ -543,11 +543,11 @@ struct local
 
 struct gc_info
 {
-    int64_t begin_time; //记录一个plane什么时候开始gc操作的
+    int64_t begin_time; // 记录一个plane什么时候开始gc操作的
     int copy_back_count;
     int erase_count;
-    int64_t process_time;      //该plane花了多少时间在gc操作上
-    double energy_consumption; //该plane花了多少能量在gc操作上
+    int64_t process_time;      // 该plane花了多少时间在gc操作上
+    double energy_consumption; // 该plane花了多少能量在gc操作上
 };
 
 struct direct_erase
@@ -565,10 +565,10 @@ struct gc_operation
     unsigned int chip;
     unsigned int die;
     unsigned int plane;
-    unsigned int block;    //该参数只在可中断的gc函数中使用（gc_interrupt），用来记录已近找出来的目标块号 | This parameter is only used in the interruptible gc function (gc_interrupt) to record the target block number that has been found nearby.
-    unsigned int page;     //该参数只在可中断的gc函数中使用（gc_interrupt），用来记录已经完成的数据迁移的页号 | This parameter is only used in the interruptible gc function (gc_interrupt), which is used to record the page number of the completed data migration.
-    unsigned int state;    //记录当前gc请求的状态 | Record the status of the current gc request
-    unsigned int priority; //记录该gc操作的优先级，1表示不可中断，0表示可中断（软阈值产生的gc请求） | Record the priority of the gc operation, 1 means uninterruptible, 0 means interruptable (gc request generated by soft threshold)
+    unsigned int block;    // 该参数只在可中断的gc函数中使用（gc_interrupt），用来记录已近找出来的目标块号 | This parameter is only used in the interruptible gc function (gc_interrupt) to record the target block number that has been found nearby.
+    unsigned int page;     // 该参数只在可中断的gc函数中使用（gc_interrupt），用来记录已经完成的数据迁移的页号 | This parameter is only used in the interruptible gc function (gc_interrupt), which is used to record the page number of the completed data migration.
+    unsigned int state;    // 记录当前gc请求的状态 | Record the status of the current gc request
+    unsigned int priority; // 记录该gc操作的优先级，1表示不可中断，0表示可中断（软阈值产生的gc请求） | Record the priority of the gc operation, 1 means uninterruptible, 0 means interruptable (gc request generated by soft threshold)
     struct gc_operation *next_node;
 
     int64_t x_init_time;           // time when gc initialized, when the threshold is reached.

@@ -73,7 +73,7 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     struct parameter_value *parameters;
     FILE *fp = NULL;
 
-    //导入ssd的配置文件 | Import SSD configuration file
+    // 导入ssd的配置文件 | Import SSD configuration file
     parameters = load_parameters(ssd->parameterfilename);
     if (parameters == NULL)
     {
@@ -89,13 +89,13 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     ssd->pre_process_time = 0;
     ssd->current_time = 0;
 
-    //初始化 dram | initialize dram
+    // 初始化 dram | initialize dram
     ssd->dram = (struct dram_info *)malloc(sizeof(struct dram_info));
     alloc_assert(ssd->dram, "ssd->dram");
     memset(ssd->dram, 0, sizeof(struct dram_info));
     initialize_dram(ssd);
 
-    //初始化通道 | initialize channel
+    // 初始化通道 | initialize channel
     ssd->channel_head = (struct channel_info *)malloc(ssd->parameter->channel_number * sizeof(struct channel_info));
     alloc_assert(ssd->channel_head, "ssd->channel_head");
     memset(ssd->channel_head, 0, ssd->parameter->channel_number * sizeof(struct channel_info));
@@ -206,7 +206,7 @@ struct dram_info *initialize_dram(struct ssd_info *ssd)
 
     page_num = ssd->parameter->page_block * ssd->parameter->block_plane * ssd->parameter->plane_die * ssd->parameter->die_chip * ssd->parameter->chip_num;
 
-    dram->map->map_entry = (struct entry *)malloc(sizeof(struct entry) * page_num); //每个物理页和逻辑页都有对应关系 | Every physical page and logical page have a corresponding relationship
+    dram->map->map_entry = (struct entry *)malloc(sizeof(struct entry) * page_num); // 每个物理页和逻辑页都有对应关系 | Every physical page and logical page have a corresponding relationship
     alloc_assert(dram->map->map_entry, "dram->map->map_entry");
     memset(dram->map->map_entry, 0, sizeof(struct entry) * page_num);
 
