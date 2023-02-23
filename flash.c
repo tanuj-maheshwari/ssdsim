@@ -1220,7 +1220,7 @@ int services_2_r_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *
 }
 
 /*********************************************************************
-*When a write subrequest is processed, it needs to be deleted from the request queue. This function is to perform this function.
+ *When a write subrequest is processed, it needs to be deleted from the request queue. This function is to perform this function.
  **********************************************************************/
 int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_request *sub)
 {
@@ -1261,7 +1261,7 @@ int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_
 /*
 
 delete block
-Simple deletion of block is implemented 
+Simple deletion of block is implemented
 Hardware structure - channel->chip->die->plane->chunk->block->page->subpage
 
 Takes block as input and deletes the block
@@ -1271,56 +1271,58 @@ Steps for deleting the block
 3. Mark the pages as free
 
 */
-int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub,unsigned int block){
+int delete_block_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned int block)
+{
     // deletes the block(input)
 
-    //Error check 
-    unsigned int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
-    if(block<0 || block>=block_num){
-        return FAILURE; //block should be valid
+    // Error check
+    unsigned int block_num = ssd->parameter->block_chunk; // number of blocks in the chunk
+    if (block < 0 || block >= block_num)
+    {
+        return FAILURE; // block should be valid
     }
-    
-    
+
     unsigned int channel = 0, chip = 0, die = 0, plane = 0, page;
     unsigned int key_block = 0, page_num = ssd->parameter->page_block;
-    
+
     channel = sub->location->channel;
     chip = sub->location->chip;
     die = sub->location->die;
     plane = sub->location->plane;
 
-    
-    
     key_block = block - (block % block_num);
-    if(block==key_block){
+    if (block == key_block)
+    {
         // as it is key block all its pages contain keys
         // Thus the input is incorrect i.e. block is invalid and we return FAILURE
         return FAILURE;
     }
-    
-    //if it is not key block we need to move the valid pages to a newer location
-    unsigned int chg_cur_time_flag = 1, flag=0;
 
-    int free_page_num=ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].free_page_num;
-    
-    if(free_page_num){
-        if(services_2_write(ssd, channel, &flag, &chg_cur_time_flag)==FAILURE){
-            //if the write operation fails we return FAILURE
+    // if it is not key block we need to move the valid pages to a newer location
+    unsigned int chg_cur_time_flag = 1, flag = 0;
+
+    int free_page_num = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].free_page_num;
+
+    if (free_page_num)
+    {
+        if (services_2_write(ssd, channel, &flag, &chg_cur_time_flag) == FAILURE)
+        {
+            // if the write operation fails we return FAILURE
             return FAILURE;
         }
-        for(page = 0 ; page < page_num ; page++){// Traverse all the pages in the block 
-            
-            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the block
+        for (page = 0; page < page_num; page++)
+        { // Traverse all the pages in the block
+
+            if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[page].valid_state == 1) // page is valid so we need to move the data to another location before erasing the block
             {
-                //write page in block to another location
-                
+                // write page in block to another location
             }
         }
     }
-    
+
     // valid pages have been moved to a new location so we simply run the command of erasing block
     // erases the block and sets the free state as 0xffffffff
-    if(erase_operation(ssd,channel,chip,die,plane,block)==SUCCESS)
+    if (erase_operation(ssd, channel, chip, die, plane, block) == SUCCESS)
         return SUCCESS;
     return FAILURE;
 }
@@ -1338,15 +1340,17 @@ Steps for deleting the keypage
 3. Mark the pages that share the same key as invalid
 
 */
-int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned int page){
-    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block=0;
+int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned int page)
+{
+    unsigned int channel = 0, chip = 0, die = 0, plane = 0, block = 0;
     unsigned int key_block = 0;
-    unsigned int block_num = ssd->parameter->block_chunk;// number of blocks in the chunk
+    unsigned int block_num = ssd->parameter->block_chunk; // number of blocks in the chunk
     unsigned int page_num = ssd->parameter->page_block;
 
-    //check if the input is valid
-    if(page<0 || page>=page_num){
-        fprintf(stderr,"Enter valid page\n");
+    // check if the input is valid
+    if (page < 0 || page >= page_num)
+    {
+        fprintf(stderr, "Enter valid page\n");
         return FAILURE;
     }
     channel = sub->location->channel;
@@ -1354,43 +1358,47 @@ int delete_page_secure(struct ssd_info *ssd, struct sub_request *sub, unsigned i
     die = sub->location->die;
     plane = sub->location->plane;
     block = sub->location->block;
-    
+
     key_block = block - (block % block_num);
 
-    unsigned int chg_cur_time_flag = 1, flag=0;
+    unsigned int chg_cur_time_flag = 1, flag = 0;
 
-    int free_page_num=0;
+    int free_page_num = 0;
 
-    //we move all the pages that share same key as keypage to other valid location
-    for(unsigned int curr_block=0; curr_block<block_num; curr_block++){
-        if(curr_block!=key_block){
-            if(ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state == 1)//page is valid so we need to move the data to another location before erasing the keypage
+    // we move all the pages that share same key as keypage to other valid location
+    for (unsigned int curr_block = 0; curr_block < block_num; curr_block++)
+    {
+        if (curr_block != key_block)
+        {
+            if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state == 1) // page is valid so we need to move the data to another location before erasing the keypage
             {
                 free_page_num++;
-                
             }
         }
     }
-    if(free_page_num){
-        //write page to another location
-        if(services_2_write(ssd, channel, &flag, &chg_cur_time_flag)==FAILURE){
-            //if the write operation fails we return FAILURE
+    if (free_page_num)
+    {
+        // write page to another location
+        if (services_2_write(ssd, channel, &flag, &chg_cur_time_flag) == FAILURE)
+        {
+            // if the write operation fails we return FAILURE
             return FAILURE;
         }
     }
-    //reprogram the key
+    // reprogram the key
 
-    //mark all the pages that share same key as invalid
-    for(int curr_block=0; curr_block<block_num; curr_block++){
-        if(curr_block!=key_block){
+    // mark all the pages that share same key as invalid
+    for (int curr_block = 0; curr_block < block_num; curr_block++)
+    {
+        if (curr_block != key_block)
+        {
             ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].page_head[page].valid_state = 0;
-            //increase the invalid page count of the bock
+            // increase the invalid page count of the bock
             ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[curr_block].invalid_page_num++;
         }
     }
     return SUCCESS;
 }
-
 
 /*
  * 函数的功能就是执行copyback命令的功能，
