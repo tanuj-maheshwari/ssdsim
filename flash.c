@@ -1818,6 +1818,10 @@ Status services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned in
                      * @brief Hueristic calculation (number of pages to be moved)
                      * After this, the next_state_predict_time could be set
                      * This should also set sub->num_pages_move and sub->erase_type
+                     * Also, other related operations must also be carried out here :-
+                     * 1. If key is to be deleted, mark it as invalid, etc
+                     * 2. If block is to be erased, mark all pages as invalid, etc
+                     * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
                      */
                     go_one_step(ssd, sub, NULL, SR_E_HC_PM_COMPUTE, NORMAL);
 
