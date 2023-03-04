@@ -756,6 +756,30 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
             sub->current_state = SR_WAIT;
             loc = find_location(ssd, ssd->dram->map->map_entry[lpn].pn);
             sub->location = loc;
+
+            /*If the page is already invalid, the request is done*/
+            if (ssd->channel_head[loc->channel].chip_head[loc->chip].die_head[loc->die].plane_head[loc->plane].blk_head[loc->block].page_head[loc->page].valid_state == 0)
+            {
+                sub->current_state = SR_E_DISC;
+                sub->location = NULL;
+                sub->ppn = 0;
+                sub->next_state = SR_COMPLETE;
+                sub->next_state_predict_time = ssd->current_time + 1000;
+                sub->complete_time = ssd->current_time + 1000;
+
+                // Add the subrequest to the end of the erase completion queue
+                if (ssd->subs_e_c_tail != NULL)
+                {
+                    ssd->subs_e_c_tail->next_node = sub;
+                    ssd->subs_e_c_tail = sub;
+                }
+                else
+                {
+                    ssd->subs_e_c_head = sub;
+                    ssd->subs_e_c_tail = sub;
+                }
+            }
+
             sub->ppn = ssd->dram->map->map_entry[lpn].pn;
             sub->next_state = SR_E_HC_PM_COMPUTE;
             sub->next_state_predict_time = MAX_INT64;
