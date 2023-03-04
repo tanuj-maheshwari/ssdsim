@@ -629,6 +629,10 @@ struct sub_request *creat_sub_request(struct ssd_info *ssd, unsigned int lpn, in
         req->subs = sub;
     }
 
+    // Needed for erase operation
+    sub->num_pages_move = 0;
+    sub->erase_type = ERASE_TYPE_KEY;
+
     /*************************************************************************************
      *在读操作的情况下，有一点非常重要就是要预先判断读子请求队列中是否有与这个子请求相同的，
      *有的话，新子请求就不必再执行了，将新的子请求直接赋为完成
