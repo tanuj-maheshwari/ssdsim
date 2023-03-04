@@ -1190,7 +1190,8 @@ unsigned int get_ppn_for_erase_copyback(struct ssd_info *ssd, struct local *loca
 }
 
 /**
- * @brief Copyback (move) a valid page for erase operation
+ * @brief Copyback (move) a valid page for erase operation.
+ * This also sets the current location to invalid
  * @param ssd The SSD info
  * @param location The location of the page to be copied
  * @return Status
@@ -1206,16 +1207,22 @@ Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
     valid_state = ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state;
     free_state = ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state;
     old_ppn = find_ppn(ssd, old_location->channel, old_location->chip, old_location->die, old_location->plane, old_location->block, old_location->page);
+    if (old_ppn == 0)
+    {
+        return ERROR;
+    }
 
     /*Get the PPN for new location. This will be in the same plane.*/
     ppn = get_ppn_for_erase_copyback(ssd, old_location);
 
     new_location = find_location(ssd, ppn);
 
+    /*Copy the contents at the new location*/
     ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].free_state = free_state;
     ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].lpn = lpn;
     ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].valid_state = valid_state;
 
+    /*Make the page at old location as invalid*/
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state = 0;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = 0;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state = 0;
