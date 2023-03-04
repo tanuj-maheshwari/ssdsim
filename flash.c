@@ -1819,6 +1819,58 @@ Status services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int
 }
 
 /**
+ * @brief Computes the number of pages to be moved and erase type for the given heuristic.
+ * Sets up the subrequest parameters num_pages_move and erase_type.
+ * @param ssd The SSD info
+ * @param sub The erase subrequest
+ * @return Status
+ */
+Status heuristic_computation(struct ssd_info *ssd, struct sub_request *sub)
+{
+    struct local *loc = sub->location;
+
+    switch (ssd->parameter->ers_heuristic)
+    {
+    case ERASE_GREEDY:
+    {
+        unsigned int blk_move = 0, key_move = 0;
+        int chunk_top = loc->block - loc->block % ssd->parameter->block_chunk;
+
+        // Calculating how many pages to be moved if key is erased
+        for (int i = 1; i <= ssd->parameter->block_chunk; i++)
+        {
+            if (i != loc->block % ssd->parameter->block_chunk) // Skipping over the page to be deleted
+            {
+                if (ssd->channel_head[loc->channel].chip_head[loc->chip].die_head[loc->die].plane_head[loc->plane].blk_head[chunk_top + i].page_head[loc->page].valid_state == 1)
+                {
+                    key_move++;
+                }
+            }
+        }
+
+        // Calculating how many pages to be moved if block is erased
+        for (int i = 0; i < ssd->parameter->page_block; i++)
+        {
+            if (i != loc->page) // Skipping over the page to be deleted
+            {
+                if (ssd->channel_head[loc->channel].chip_head[loc->chip].die_head[loc->die].plane_head[loc->plane].blk_head[loc->block].page_head[i].valid_state == 1)
+                {
+                    blk_move++;
+                }
+            }
+        }
+
+        // Setting the erase type and number of pages to be moved
+        sub->num_pages_move = blk_move < key_move ? blk_move : key_move;
+        sub->erase_type = blk_move < key_move ? ERASE_TYPE_BLOCK : ERASE_TYPE_KEY;
+    }
+
+    default:
+        break;
+    }
+}
+
+/**
  * @brief Function that manages the erase subrequests, moves non-discared requests from SR_WAIT state to SR_E_HC_PM state
  * @param ssd SSD info
  * @param channel Channel number
@@ -1841,16 +1893,14 @@ Status services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned in
                 if ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].current_state == CHIP_IDLE) || ((ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state == CHIP_IDLE) &&
                                                                                                                               (ssd->channel_head[sub->location->channel].chip_head[sub->location->chip].next_state_predict_time <= ssd->current_time)))
                 {
-                    // TODO
                     /**
                      * @brief Hueristic calculation (number of pages to be moved)
                      * After this, the next_state_predict_time could be set
-                     * This should also set sub->num_pages_move and sub->erase_type
-                     * Also, other related operations must also be carried out here :-
-                     * 1. If key is to be deleted, mark it as invalid, etc
-                     * 2. If block is to be erased, mark all pages as invalid, etc
-                     * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
+                     * This function will set sub->num_pages_move and sub->erase_type
                      */
+                    heuristic_computation(ssd, sub);
+
+                    /*Enter into the next subrequest state and manage timing accordingly*/
                     go_one_step(ssd, sub, NULL, SR_E_HC_PM_COMPUTE, NORMAL);
 
                     *change_current_time_flag = 0;
@@ -1893,6 +1943,12 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                     /*If block needs to be erased, channel doesn't need to be empty*/
                     if (sub->erase_type == ERASE_TYPE_BLOCK)
                     {
+                        /**
+                         * Also, other related operations must also be carried out here :-
+                         * 1. If key is to be deleted, mark it as invalid, etc
+                         * 2. If block is to be erased, mark all pages as invalid, etc
+                         * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
+                         */
                         go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                         *change_current_time_flag = 0;
                         break;
@@ -1904,6 +1960,12 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                         if ((ssd->channel_head[sub->location->channel].current_state == CHANNEL_IDLE) || ((ssd->channel_head[sub->location->channel].next_state == CHANNEL_IDLE) &&
                                                                                                           (ssd->channel_head[sub->location->channel].next_state_predict_time <= ssd->current_time)))
                         {
+                            /**
+                             * Also, other related operations must also be carried out here :-
+                             * 1. If key is to be deleted, mark it as invalid, etc
+                             * 2. If block is to be erased, mark all pages as invalid, etc
+                             * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
+                             */
                             go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                             *change_current_time_flag = 0;
                             *channel_busy_flag = 1;

@@ -93,6 +93,8 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define ERASE_TYPE_KEY 0   // Key is being deleted for erase operation
 #define ERASE_TYPE_BLOCK 1 // Block is being erased for erase operation
 
+#define ERASE_GREEDY 0 // Greedy erase
+
 #define REQUEST_IN 300 // 下一条请求到达的时间
 #define OUTPUT 301     // 下一次数据输出的时间
 
@@ -543,7 +545,8 @@ struct parameter_value
     int greed_MPW_ad; // 0 don't use multi-plane write advanced commands greedily; 1 use multi-plane write advanced commands greedily
     int aged;         // 1 means that you need to turn this SSD into aged, 0 means that you need to keep this SSD NON-AGED
     float aged_ratio;
-    int queue_length; // 请求队列的长度限制
+    int queue_length;  // 请求队列的长度限制
+    int ers_heuristic; // Erase heuristic type to be used, 0 means GREEDY
 
     struct ac_time_characteristics time_characteristics;
 };
