@@ -1949,6 +1949,9 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                          * 2. Move the relevant valid pages to new locations (use the copyback_page_for_erase() function)
                          * 3. Carry out the key deletion (write_page()) or block erase (erase_block()) operation as per the erase type
                          */
+                        perform_secure_erase(ssd, sub);
+
+                        /*Enter into the next subrequest state and manage timing accordingly*/
                         go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                         *change_current_time_flag = 0;
                         break;
@@ -1966,6 +1969,9 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                              * 2. Move the relevant valid pages to new locations (use the copyback_page_for_erase() function)
                              * 3. Carry out the key deletion (write_page()) or block erase (erase_block()) operation as per the erase type
                              */
+                            perform_secure_erase(ssd, sub);
+
+                            /*Enter into the next subrequest state and manage timing accordingly*/
                             go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                             *change_current_time_flag = 0;
                             *channel_busy_flag = 1;

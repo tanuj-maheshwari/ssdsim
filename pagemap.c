@@ -1240,6 +1240,80 @@ Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
     return SUCCESS;
 }
 
+/**
+ * @brief Complete the secure erase of the given sub request.
+ * 1. Checks if key or block needs to be deleted
+ * 2. Moves all the relevant valid pages to new locations (updates the mappings and marks the old pages as invalid)
+ * 3. Reprograms the key page or erases the block as per the erase type determined by the heuristic
+ * @param ssd The SSD info
+ * @param sub The erase sub request
+ * @return Status
+ */
+Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
+{
+    unsigned int channel = sub->location->channel;
+    unsigned int chip = sub->location->chip;
+    unsigned int die = sub->location->die;
+    unsigned int plane = sub->location->plane;
+    unsigned int block = sub->location->block;
+    unsigned int page = sub->location->page;
+
+    switch (sub->erase_type)
+    {
+    case ERASE_TYPE_KEY:
+    {
+        int chunk_top = block - block % ssd->parameter->block_chunk;
+
+        /*Move all valid pages elsewhere*/
+        for (int i = 1; i <= ssd->parameter->block_chunk; i++)
+        {
+            if (i != block % ssd->parameter->block_chunk) // Skipping over the page to be deleted
+            {
+                if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].valid_state == 1)
+                {
+                    /*Calculate page location*/
+                    unsigned int ppn = find_ppn(ssd, channel, chip, die, plane, chunk_top + i, page);
+                    struct local *location = find_location(ssd, ppn);
+
+                    /*Move the page somewhere else*/
+                    copyback_page_for_erase(ssd, location);
+                }
+            }
+        }
+
+        /*Set the key page as invalid*/
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top].page_head[page].valid_state = 0;
+        ssd->key_prog_count++;
+        ssd->write_flash_count++;
+    }
+
+    case ERASE_TYPE_BLOCK:
+    {
+        /*Move all valid pages elsewhere*/
+        for (int i = 0; i < ssd->parameter->page_block; i++)
+        {
+            if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state == 1)
+            {
+                /*Calculate page location*/
+                unsigned int ppn = find_ppn(ssd, channel, chip, die, plane, block, i);
+                struct local *location = find_location(ssd, ppn);
+
+                /*Move the page somewhere else*/
+                copyback_page_for_erase(ssd, location);
+            }
+        }
+
+        /*Erase the block*/
+        erase_operation(ssd, channel, chip, die, plane, block);
+    }
+
+    default:
+        break;
+    }
+
+    return SUCCESS;
+}
+
 /*******************************************************************************************************************************************
  *目标的plane没有可以直接删除的block，需要寻找目标擦除块后在实施擦除操作，用在不能中断的gc操作中，成功删除一个块，返回1，没有删除一个块返回-1
  *在这个函数中，不用考虑目标channel,die是否是空闲的,擦除invalid_page_num最多的block

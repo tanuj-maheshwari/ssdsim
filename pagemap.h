@@ -50,5 +50,6 @@ int delete_gc_node(struct ssd_info *ssd, unsigned int channel, struct gc_operati
 
 unsigned int get_ppn_for_erase_copyback(struct ssd_info *ssd, struct local *location);
 int copyback_page_for_erase(struct ssd_info *ssd, struct local *location);
+int perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub);
 
 #endif
