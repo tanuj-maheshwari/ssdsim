@@ -89,6 +89,10 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     ssd->pre_process_time = 0;
     ssd->current_time = 0;
 
+    // Initialize key program count and block erase count
+    ssd->key_prog_count = 0;
+    ssd->erase_count = 0;
+
     // 初始化 dram | initialize dram
     ssd->dram = (struct dram_info *)malloc(sizeof(struct dram_info));
     alloc_assert(ssd->dram, "ssd->dram");

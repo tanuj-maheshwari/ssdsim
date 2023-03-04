@@ -661,6 +661,7 @@ struct ssd_info *adjust_key_page_for_w_subreq(struct ssd_info *ssd, struct sub_r
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
         ssd->write_flash_count++;
+        ssd->key_prog_count++;
         sub->key_generated_flag = 1;
     }
 
@@ -707,6 +708,7 @@ struct ssd_info *adjust_key_page_for_pre_process(struct ssd_info *ssd, struct lo
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].free_state = 0xffffffff;
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[key_block].page_head[key_page].written_count++;
         ssd->write_flash_count++;
+        ssd->key_prog_count++;
         ssd->pre_process_time += ssd->parameter->time_characteristics.tKG + ssd->parameter->subpage_capacity * ssd->parameter->time_characteristics.tWC;
         // printf("adjust_key_page_for_pre_process: current_time %lld\n", ssd->current_time);
     }

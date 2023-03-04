@@ -233,6 +233,7 @@ struct ssd_info
     unsigned int max_lsn;
     unsigned long read_count;
     unsigned long program_count;
+    unsigned long key_prog_count; // Number of times key pages are programmed
     unsigned long erase_count;
     unsigned long direct_erase_count;
     unsigned long copy_back_count;
