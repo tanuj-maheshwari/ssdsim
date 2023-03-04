@@ -1182,7 +1182,8 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->outputfile, "program count: %13lu", ssd->program_count);
     fprintf(ssd->outputfile, "                        include the flash write count leaded by read requests\n");
     fprintf(ssd->outputfile, "the read operation leaded by un-covered update count: %13d\n", ssd->update_read_count);
-    fprintf(ssd->outputfile, "erase count: %13lu\n", ssd->erase_count);
+    fprintf(ssd->outputfile, "key program count: %13lu\n", ssd->key_prog_count);
+    fprintf(ssd->outputfile, "block erase count: %13lu\n", ssd->erase_count);
     fprintf(ssd->outputfile, "direct erase count: %13lu\n", ssd->direct_erase_count);
     fprintf(ssd->outputfile, "copy back count: %13lu\n", ssd->copy_back_count);
     fprintf(ssd->outputfile, "multi-plane program count: %13lu\n", ssd->m_plane_prog_count);
@@ -1198,12 +1199,16 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->outputfile, "interleave multiple plane erase count: %13lu\n", ssd->interleave_mplane_erase_count);
     fprintf(ssd->outputfile, "read request count: %13u\n", ssd->read_request_count);
     fprintf(ssd->outputfile, "write request count: %13u\n", ssd->write_request_count);
+    fprintf(ssd->outputfile, "erase request count: %13f\n", ssd->erase_request_count);
     fprintf(ssd->outputfile, "read request average size: %13f\n", ssd->ave_read_size);
     fprintf(ssd->outputfile, "write request average size: %13f\n", ssd->ave_write_size);
+    fprintf(ssd->outputfile, "erase request average size: %13f\n", ssd->ave_erase_size);
     if (ssd->read_request_count != 0)
         fprintf(ssd->outputfile, "read request average response time: %lld\n", ssd->read_avg / ssd->read_request_count);
     if (ssd->write_request_count != 0)
         fprintf(ssd->outputfile, "write request average response time: %lld\n", ssd->write_avg / ssd->write_request_count);
+    if (ssd->erase_request_count != 0)
+        fprintf(ssd->outputfile, "erase request average response time: %lld\n", ssd->erase_avg / ssd->erase_request_count);
     fprintf(ssd->outputfile, "buffer read hits: %13lu\n", ssd->dram->buffer->read_hit);
     fprintf(ssd->outputfile, "buffer read miss: %13lu\n", ssd->dram->buffer->read_miss_hit);
     fprintf(ssd->outputfile, "buffer write hits: %13lu\n", ssd->dram->buffer->write_hit);
@@ -1222,7 +1227,8 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "program count: %13lu", ssd->program_count);
     fprintf(ssd->statisticfile, "                        include the flash write count leaded by read requests\n");
     fprintf(ssd->statisticfile, "the read operation leaded by un-covered update count: %13u\n", ssd->update_read_count);
-    fprintf(ssd->statisticfile, "erase count: %13lu\n", ssd->erase_count);
+    fprintf(ssd->statisticfile, "key program count: %13lu\n", ssd->key_prog_count);
+    fprintf(ssd->statisticfile, "block erase count: %13lu\n", ssd->erase_count);
     fprintf(ssd->statisticfile, "direct erase count: %13lu\n", ssd->direct_erase_count);
     fprintf(ssd->statisticfile, "copy back count: %13lu\n", ssd->copy_back_count);
     fprintf(ssd->statisticfile, "multi-plane program count: %13lu\n", ssd->m_plane_prog_count);
@@ -1240,12 +1246,15 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "interleave multiple plane erase count: %13lu\n", ssd->interleave_mplane_erase_count);
     fprintf(ssd->statisticfile, "read request count: %13u\n", ssd->read_request_count);
     fprintf(ssd->statisticfile, "write request count: %13u\n", ssd->write_request_count);
+    fprintf(ssd->statisticfile, "erase request count: %13f\n", ssd->erase_request_count);
     fprintf(ssd->statisticfile, "read request average size: %13f\n", ssd->ave_read_size);
     fprintf(ssd->statisticfile, "write request average size: %13f\n", ssd->ave_write_size);
     if (ssd->read_request_count != 0)
         fprintf(ssd->statisticfile, "read request average response time: %lld\n", ssd->read_avg / ssd->read_request_count);
     if (ssd->write_request_count != 0)
         fprintf(ssd->statisticfile, "write request average response time: %lld\n", ssd->write_avg / ssd->write_request_count);
+    if (ssd->erase_request_count != 0)
+        fprintf(ssd->statisticfile, "erase request average response time: %lld\n", ssd->erase_avg / ssd->erase_request_count);
     fprintf(ssd->statisticfile, "buffer read hits: %13lu\n", ssd->dram->buffer->read_hit);
     fprintf(ssd->statisticfile, "buffer read miss: %13lu\n", ssd->dram->buffer->read_miss_hit);
     fprintf(ssd->statisticfile, "buffer write hits: %13lu\n", ssd->dram->buffer->write_hit);
@@ -1253,6 +1262,7 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "erase: %13u\n", erase);
     fprintf(ssd->statisticfile, "write sub request count: %13u\n", ssd->write_subreq_count);
     fprintf(ssd->statisticfile, "read subr request count: %13u\n", ssd->read_subreq_count);
+    fprintf(ssd->statisticfile, "erase subr request count: %13u\n", ssd->erase_subreq_count);
     if (ssd->write_request_count != 0)
         fprintf(ssd->statisticfile, "write amplification: %.2f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
     if (ssd->read_request_count != 0)
