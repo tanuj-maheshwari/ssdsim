@@ -1944,10 +1944,10 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                     if (sub->erase_type == ERASE_TYPE_BLOCK)
                     {
                         /**
-                         * Also, other related operations must also be carried out here :-
-                         * 1. If key is to be deleted, mark it as invalid, etc
-                         * 2. If block is to be erased, mark all pages as invalid, etc
-                         * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
+                         * Create a function that carries out the following operations :-
+                         * 1. Checks if key is to be deleted or block is to be erased
+                         * 2. Move the relevant valid pages to new locations (use the copyback_page_for_erase() function)
+                         * 3. Carry out the key deletion (write_page()) or block erase (erase_block()) operation as per the erase type
                          */
                         go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                         *change_current_time_flag = 0;
@@ -1961,10 +1961,10 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                                                                                                           (ssd->channel_head[sub->location->channel].next_state_predict_time <= ssd->current_time)))
                         {
                             /**
-                             * Also, other related operations must also be carried out here :-
-                             * 1. If key is to be deleted, mark it as invalid, etc
-                             * 2. If block is to be erased, mark all pages as invalid, etc
-                             * 3. Move the valid pages by using a new function, which should be almost the same as move_page()
+                             * Create a function that carries out the following operations :-
+                             * 1. Checks if key is to be deleted or block is to be erased
+                             * 2. Move the relevant valid pages to new locations (use the copyback_page_for_erase() function)
+                             * 3. Carry out the key deletion (write_page()) or block erase (erase_block()) operation as per the erase type
                              */
                             go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
                             *change_current_time_flag = 0;

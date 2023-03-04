@@ -1158,6 +1158,79 @@ Status move_page(struct ssd_info *ssd, struct local *location, unsigned int *tra
     return SUCCESS;
 }
 
+/**
+ * @brief Get the ppn for erase copyback operation
+ * @param ssd The SSD info
+ * @param location The location of the page to be copied
+ * @return PPN where the data is copied to
+ */
+unsigned int get_ppn_for_erase_copyback(struct ssd_info *ssd, struct local *location)
+{
+    unsigned int channel = location->channel, chip = location->chip, die = location->die, plane = location->plane;
+    unsigned int ppn;
+    unsigned int active_block;
+
+    /*Find an active block in the same plane for copyback operation*/
+    if (find_active_block(ssd, channel, chip, die, plane) == FAILURE)
+    {
+        printf("the move operation is expand the capacity of SSD\n");
+        return 0;
+    }
+
+    /*Write to the free page in the active block*/
+    active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
+    if (write_page(ssd, channel, chip, die, plane, active_block, &ppn) == ERROR)
+    {
+        return 0;
+    }
+
+    return ppn;
+}
+
+/**
+ * @brief Copyback (move) a valid page for erase operation
+ * @param ssd The SSD info
+ * @param location The location of the page to be copied
+ * @return Status
+ */
+Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
+{
+    struct local *old_location = location;
+    struct local *new_location = NULL;
+    unsigned int free_state = 0, valid_state = 0;
+    unsigned int lpn = 0, old_ppn = 0, ppn = 0;
+
+    lpn = ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn;
+    valid_state = ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state;
+    free_state = ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state;
+    old_ppn = find_ppn(ssd, old_location->channel, old_location->chip, old_location->die, old_location->plane, old_location->block, old_location->page);
+
+    /*Get the PPN for new location. This will be in the same plane.*/
+    ppn = get_ppn_for_erase_copyback(ssd, old_location);
+
+    new_location = find_location(ssd, ppn);
+
+    ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].free_state = free_state;
+    ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].lpn = lpn;
+    ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].valid_state = valid_state;
+
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state = 0;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = 0;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state = 0;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].invalid_page_num++;
+
+    /*Update the map entry*/
+    if (old_ppn == ssd->dram->map->map_entry[lpn].pn)
+    {
+        ssd->dram->map->map_entry[lpn].pn = ppn;
+    }
+
+    free(new_location);
+    new_location = NULL;
+
+    return SUCCESS;
+}
+
 /*******************************************************************************************************************************************
  *目标的plane没有可以直接删除的block，需要寻找目标擦除块后在实施擦除操作，用在不能中断的gc操作中，成功删除一个块，返回1，没有删除一个块返回-1
  *在这个函数中，不用考虑目标channel,die是否是空闲的,擦除invalid_page_num最多的block

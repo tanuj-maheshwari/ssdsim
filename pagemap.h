@@ -48,4 +48,7 @@ int move_page(struct ssd_info *ssd, struct local *location, unsigned int *transf
 int gc_for_channel(struct ssd_info *ssd, unsigned int channel);
 int delete_gc_node(struct ssd_info *ssd, unsigned int channel, struct gc_operation *gc_node);
 
+unsigned int get_ppn_for_erase_copyback(struct ssd_info *ssd, struct local *location);
+int copyback_page_for_erase(struct ssd_info *ssd, struct local *location);
+
 #endif
