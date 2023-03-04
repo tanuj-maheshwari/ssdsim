@@ -1177,7 +1177,7 @@ unsigned int get_ppn_for_erase_copyback(struct ssd_info *ssd, struct local *loca
         return 0;
     }
 
-    /*Write to the free page in the active block*/
+    /*This takes care of the statistics maintained (like page preogram count, etc) without catually writing anything to the location*/
     active_block = ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].active_block;
     if (write_page(ssd, channel, chip, die, plane, active_block, &ppn) == ERROR)
     {
