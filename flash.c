@@ -1953,6 +1953,10 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
 
                         /*Enter into the next subrequest state and manage timing accordingly*/
                         go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
+
+                        /*Delete the subrequest from the queue*/
+                        delete_e_sub_request(ssd, sub);
+
                         *change_current_time_flag = 0;
                         break;
                     }
@@ -1973,6 +1977,10 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
 
                             /*Enter into the next subrequest state and manage timing accordingly*/
                             go_one_step(ssd, sub, NULL, SR_E_ERASE, NORMAL);
+
+                            /*Delete the subrequest from the queue*/
+                            delete_e_sub_request(ssd, sub);
+
                             *change_current_time_flag = 0;
                             *channel_busy_flag = 1;
                             break;
@@ -1981,6 +1989,49 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
                 }
             }
             sub = sub->next_node;
+        }
+    }
+    return SUCCESS;
+}
+
+/**
+ * @brief Function to delete the erase subrequest from the channel queue
+ * @param ssd The SSD info
+ * @param sub The subrequest to be deleted
+ * @return Status
+ */
+Status delete_e_sub_request(struct ssd_info *ssd, struct sub_request *sub)
+{
+    unsigned int channel = sub->location->channel;
+    struct sub_request *p = NULL;
+    if (sub == ssd->channel_head[channel].subs_e_head)
+    {
+        if (ssd->channel_head[channel].subs_e_head != ssd->channel_head[channel].subs_e_tail)
+        {
+            ssd->channel_head[channel].subs_e_head = sub->next_node;
+        }
+        else
+        {
+            ssd->channel_head[channel].subs_e_head = NULL;
+            ssd->channel_head[channel].subs_e_tail = NULL;
+        }
+    }
+    else
+    {
+        p = ssd->channel_head[channel].subs_e_head;
+        while (p->next_node != sub)
+        {
+            p = p->next_node;
+        }
+
+        if (sub->next_node != NULL)
+        {
+            p->next_node = sub->next_node;
+        }
+        else
+        {
+            p->next_node = NULL;
+            ssd->channel_head[channel].subs_e_tail = p;
         }
     }
     return SUCCESS;

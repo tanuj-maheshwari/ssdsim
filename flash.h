@@ -64,6 +64,7 @@ int static_write(struct ssd_info *ssd, unsigned int channel, unsigned int chip, 
 
 int services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag);
 int services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag);
+int delete_e_sub_request(struct ssd_info *ssd, struct sub_request *sub);
 
 int heuristic_computation(struct ssd_info *ssd, struct sub_request *sub);
 
