@@ -408,6 +408,9 @@ int get_requests(struct ssd_info *ssd)
         }
 
         // If EOF, continue to process the request queue until empty
+        if(feof(ssd->tracefile)){
+            ssd->simulation_end_time = ssd->current_time;
+        }
     }
     else
     {
