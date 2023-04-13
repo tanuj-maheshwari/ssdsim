@@ -5,11 +5,14 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "ssd.h"
 #include "raid.h"
 
 int main(int argc, char *argv[])
 {
+    clock_t ssd_start_time, ssd_end_time;
+    ssd_start_time=clock();
     unsigned int err;
     struct user_args *uargs;
 
@@ -36,8 +39,10 @@ int main(int argc, char *argv[])
     }
 
     free(uargs);
+    ssd_end_time= clock();
     printf("\nThe simulation is completed! \n");
-
+    double cpu_time_used=((double) (ssd_end_time - ssd_start_time)) / CLOCKS_PER_SEC;
+    printf("The time used for the program is %lf seconds",cpu_time_used);
     return 0;
 }
 
