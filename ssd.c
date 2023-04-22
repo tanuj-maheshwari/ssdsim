@@ -1288,6 +1288,7 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, " IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fprintf(ssd->statisticfile, " read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fprintf(ssd->statisticfile, " write BW: %.3f MB/s\n", ((double)ssd->write_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+    fprintf(ssd->statisticfile, " erase BW: %.3f MB/s\n", ((double)ssd->erase_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fflush(ssd->statisticfile);
 
     printf(" pre-process duration: %lld ns\n", ssd->pre_process_time);
@@ -1295,6 +1296,7 @@ void statistic_output(struct ssd_info *ssd)
     printf(" IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     printf(" read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     printf(" write BW: %.3f MB/s\n", ((double)ssd->write_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+    printf(" erase BW: %.3f MB/s\n", ((double)ssd->erase_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
 }
 
 /***********************************************************************************
