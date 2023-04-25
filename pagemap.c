@@ -1229,10 +1229,10 @@ Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].invalid_page_num++;
 
     /*Update the map entry*/
-    if (old_ppn == ssd->dram->map->map_entry[lpn].pn)
-    {
-        ssd->dram->map->map_entry[lpn].pn = ppn;
-    }
+    // if (old_ppn == ssd->dram->map->map_entry[lpn].pn)
+    // {
+    ssd->dram->map->map_entry[lpn].pn = ppn;
+    // }
 
     free(new_location);
     new_location = NULL;
@@ -1292,11 +1292,11 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].invalid_page_num++;
 
                 /*Update the map entry*/
-                if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
-                {
-                    ssd->dram->map->map_entry[sub->lpn].pn = -1;
-                    ssd->dram->map->map_entry[sub->lpn].state = 0;
-                }
+                // if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
+                // {
+                ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                ssd->dram->map->map_entry[sub->lpn].state = 0;
+                // }
             }
         }
 
@@ -1336,11 +1336,11 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].invalid_page_num++;
 
                 /*Update the map entry*/
-                if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
-                {
-                    ssd->dram->map->map_entry[sub->lpn].pn = -1;
-                    ssd->dram->map->map_entry[sub->lpn].state = 0;
-                }
+                // if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
+                // {
+                ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                ssd->dram->map->map_entry[sub->lpn].state = 0;
+                // }
             }
         }
 
