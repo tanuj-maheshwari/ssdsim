@@ -1295,6 +1295,7 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
                 if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
                 {
                     ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                    ssd->dram->map->map_entry[sub->lpn].state = 0;
                 }
             }
         }
@@ -1338,6 +1339,7 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
                 if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
                 {
                     ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                    ssd->dram->map->map_entry[sub->lpn].state = 0;
                 }
             }
         }
