@@ -1223,8 +1223,8 @@ Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
     ssd->channel_head[new_location->channel].chip_head[new_location->chip].die_head[new_location->die].plane_head[new_location->plane].blk_head[new_location->block].page_head[new_location->page].valid_state = valid_state;
 
     /*Make the page at old location as invalid*/
-    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state = 0;
-    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = 0;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state = PG_SUB;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = -1;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state = 0;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].invalid_page_num++;
 
@@ -1279,6 +1279,24 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
                     copyback_page_for_erase(ssd, location);
                 }
             }
+            else // Set the page to be deleted as invalid
+            {
+                /*Calculate page location*/
+                unsigned int ppn = find_ppn(ssd, channel, chip, die, plane, chunk_top + i, page);
+                struct local *location = find_location(ssd, ppn);
+
+                /*Make the page invalid*/
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].free_state = PG_SUB;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].lpn = -1;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].valid_state = 0;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].invalid_page_num++;
+
+                /*Update the map entry*/
+                if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
+                {
+                    ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                }
+            }
         }
 
         /*Set the key page as invalid*/
@@ -1292,14 +1310,35 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
         /*Move all valid pages elsewhere*/
         for (int i = 0; i < ssd->parameter->page_block; i++)
         {
-            if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state == 1)
+            if (i != page) // Skipping over the page to be deleted
+            {
+                if (ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state == 1)
+                {
+                    /*Calculate page location*/
+                    unsigned int ppn = find_ppn(ssd, channel, chip, die, plane, block, i);
+                    struct local *location = find_location(ssd, ppn);
+
+                    /*Move the page somewhere else*/
+                    copyback_page_for_erase(ssd, location);
+                }
+            }
+            else // Set the page to be deleted as invalid
             {
                 /*Calculate page location*/
                 unsigned int ppn = find_ppn(ssd, channel, chip, die, plane, block, i);
                 struct local *location = find_location(ssd, ppn);
 
-                /*Move the page somewhere else*/
-                copyback_page_for_erase(ssd, location);
+                /*Make the page invalid*/
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].free_state = PG_SUB;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].lpn = -1;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 0;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].invalid_page_num++;
+
+                /*Update the map entry*/
+                if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
+                {
+                    ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                }
             }
         }
 
