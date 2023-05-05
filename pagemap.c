@@ -1224,7 +1224,7 @@ Status copyback_page_for_erase(struct ssd_info *ssd, struct local *location)
 
     /*Make the page at old location as invalid*/
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].free_state = PG_SUB;
-    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = -1;
+    ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].lpn = 0;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].page_head[old_location->page].valid_state = 0;
     ssd->channel_head[old_location->channel].chip_head[old_location->chip].die_head[old_location->die].plane_head[old_location->plane].blk_head[old_location->block].invalid_page_num++;
 
@@ -1287,14 +1287,14 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
 
                 /*Make the page invalid*/
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].free_state = PG_SUB;
-                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].lpn = -1;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].lpn = 0;
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].page_head[page].valid_state = 0;
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[chunk_top + i].invalid_page_num++;
 
                 /*Update the map entry*/
                 // if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
                 // {
-                ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                ssd->dram->map->map_entry[sub->lpn].pn = 0;
                 ssd->dram->map->map_entry[sub->lpn].state = 0;
                 // }
             }
@@ -1331,14 +1331,14 @@ Status perform_secure_erase(struct ssd_info *ssd, struct sub_request *sub)
 
                 /*Make the page invalid*/
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].free_state = PG_SUB;
-                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].lpn = -1;
+                ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].lpn = 0;
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 0;
                 ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].invalid_page_num++;
 
                 /*Update the map entry*/
                 // if (ppn == ssd->dram->map->map_entry[sub->lpn].pn)
                 // {
-                ssd->dram->map->map_entry[sub->lpn].pn = -1;
+                ssd->dram->map->map_entry[sub->lpn].pn = 0;
                 ssd->dram->map->map_entry[sub->lpn].state = 0;
                 // }
             }
