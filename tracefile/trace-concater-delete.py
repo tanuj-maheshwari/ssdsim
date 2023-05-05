@@ -45,11 +45,11 @@ def main(argv):
 
             
             lsn = lsn + (i*16) # make lsn litle bit random
-            if j>5 and random.random()<0.25:
+            if j>5 and random.random()<0.1 and ope == '0':
                 # make 10 % delete
                 otf.write(str(timestamp) + ' ' + diskid + ' ' + str(lsn) + ' ' + size + ' ' + '2' + '\n')
-            else:
-                otf.write(str(timestamp) + ' ' + diskid + ' ' + str(lsn) + ' ' + size + ' ' + ope + '\n')
+            # else:
+            otf.write(str(timestamp) + ' ' + diskid + ' ' + str(lsn) + ' ' + size + ' ' + ope + '\n')
             if j == nrequest-1:
                 lasttimestamp = timestamp
 
