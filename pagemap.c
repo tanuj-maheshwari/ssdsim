@@ -521,7 +521,8 @@ struct ssd_info *get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned in
         location = find_location(ssd, ppn);
         if (ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn != lpn)
         {
-            printf("\nError in get_ppn()\n");
+            // printf("\nError in get_ppn()\n");
+            // printf("state: %lld, ppn: %lld, lpn: %lld, calc_lpn: %lld", ssd->dram->map->map_entry[lpn].state, ppn, lpn, ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].lpn);
         }
 
         ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].blk_head[location->block].page_head[location->page].valid_state = 0; /*Indicates that a page is invalid, and both the valid and free states are marked as 0*/
