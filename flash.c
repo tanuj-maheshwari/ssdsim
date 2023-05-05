@@ -2142,6 +2142,12 @@ struct ssd_info *process(struct ssd_info *ssd)
                 services_2_r_data_trans(ssd, i, &flag, &chg_cur_time_flag);
             }
 
+            /*if there are no read or erase request to take channel, we can serve write requests*/
+            if (flag == 0)
+            {
+                services_2_write(ssd, i, &flag, &chg_cur_time_flag);
+            }
+
             /*Handling erase requests in wait state*/
             services_2_e_wait(ssd, i, &flag, &chg_cur_time_flag);
 
@@ -2149,15 +2155,9 @@ struct ssd_info *process(struct ssd_info *ssd)
              * @brief Handling completion of each erase request one by one
              * Here, as page move is done via an operation similar to copyback, channel is not occupied
              */
-            if (ssd->channel_head[i].subs_e_head != NULL)
+            if ((flag == 0) && (ssd->channel_head[i].subs_e_head != NULL))
             {
                 services_2_e_comp(ssd, i, &flag, &chg_cur_time_flag);
-            }
-
-            /*if there are no read or erase request to take channel, we can serve write requests*/
-            if (flag == 0)
-            {
-                services_2_write(ssd, i, &flag, &chg_cur_time_flag);
             }
         }
     }
