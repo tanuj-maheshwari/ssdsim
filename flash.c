@@ -1027,7 +1027,7 @@ Status services_2_r_cmd_trans_and_complete(struct ssd_info *ssd)
     for (i = 0; i < ssd->parameter->channel_number; i++) /*这个循环处理不需要channel的时间(读命令已经到达chip，chip由ready变为busy)，当读请求完成时，将其从channel的队列中取出*/
     {
         sub = ssd->channel_head[i].subs_r_head;
-        while (sub != NULL)
+        while (sub != NULL && sub->operation == READ)
         {
             /*读命令发送完毕，将对应的die置为busy，同时修改sub的状态; 这个部分专门处理读请求由当前状态为传命令变为die开始busy，die开始busy不需要channel为空，所以单独列出*/
             /**
@@ -1281,7 +1281,7 @@ int services_2_r_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *
      *******************************/
     if (((ssd->parameter->advanced_commands & AD_INTERLEAVE) != AD_INTERLEAVE) && ((ssd->parameter->advanced_commands & AD_TWOPLANE_READ) != AD_TWOPLANE_READ))
     {
-        while (sub != NULL) /*if there are read requests in queue, send one of them to target chip*/
+        while (sub != NULL && sub->operation == SR_R_READ) /*if there are read requests in queue, send one of them to target chip*/
         {
             if (sub->current_state == SR_WAIT)
             {
@@ -1885,7 +1885,7 @@ Status services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned in
 
     if (ssd->channel_head[channel].subs_e_head != NULL)
     {
-        while (sub != NULL) /*if there are erase requests in queue, send one of them to target chip*/
+        while (sub != NULL && sub->operation == ERASE) /*if there are erase requests in queue, send one of them to target chip*/
         {
             if (sub->current_state == SR_WAIT)
             {
@@ -1932,7 +1932,7 @@ Status services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned in
 
     if (ssd->channel_head[channel].subs_e_head != NULL)
     {
-        while (sub != NULL) /*if there are erase requests in queue, send one of them to target chip*/
+        while (sub != NULL && sub->operation == ERASE) /*if there are erase requests in queue, send one of them to target chip*/
         {
             if (sub->current_state == SR_E_HC_PM_COMPUTE)
             {
@@ -4152,6 +4152,10 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
             ssd->channel_head[location->channel].chip_head[location->chip].current_state = CHIP_WRITE_BUSY;
             ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
             ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
+
+            // Experimental
+            // ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].add_reg_ppn = -1;
+
             ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = time + ssd->parameter->time_characteristics.tPROG;
 
             break;
@@ -4205,6 +4209,7 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
                 ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
                 ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
                 ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->complete_time;
+                ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].add_reg_ppn = -1;
             }
             else if (sub->erase_type == ERASE_TYPE_BLOCK)
             {
@@ -4215,6 +4220,7 @@ Status go_one_step(struct ssd_info *ssd, struct sub_request *sub1, struct sub_re
                 ssd->channel_head[location->channel].chip_head[location->chip].current_time = ssd->current_time;
                 ssd->channel_head[location->channel].chip_head[location->chip].next_state = CHIP_IDLE;
                 ssd->channel_head[location->channel].chip_head[location->chip].next_state_predict_time = sub->complete_time;
+                ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].plane_head[location->plane].add_reg_ppn = -1;
             }
 
             break;
