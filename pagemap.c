@@ -795,7 +795,7 @@ Status erase_operation(struct ssd_info *ssd, unsigned int channel, unsigned int 
     {
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].free_state = PG_SUB;
         ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].valid_state = 0;
-        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].lpn = -1;
+        ssd->channel_head[channel].chip_head[chip].die_head[die].plane_head[plane].blk_head[block].page_head[i].lpn = 0;
     }
     ssd->erase_count++;
     ssd->channel_head[channel].erase_count++;
