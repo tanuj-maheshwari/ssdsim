@@ -221,7 +221,7 @@ struct page_info *initialize_page(struct page_info *p_page)
 {
     p_page->valid_state = 0;
     p_page->free_state = PG_SUB;
-    p_page->lpn = -1;
+    p_page->lpn = 0;
     p_page->written_count = 0;
     return p_page;
 }

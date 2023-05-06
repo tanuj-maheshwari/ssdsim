@@ -1281,7 +1281,7 @@ int services_2_r_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *
      *******************************/
     if (((ssd->parameter->advanced_commands & AD_INTERLEAVE) != AD_INTERLEAVE) && ((ssd->parameter->advanced_commands & AD_TWOPLANE_READ) != AD_TWOPLANE_READ))
     {
-        while (sub != NULL && sub->operation == SR_R_READ) /*if there are read requests in queue, send one of them to target chip*/
+        while (sub != NULL && sub->operation == READ) /*if there are read requests in queue, send one of them to target chip*/
         {
             if (sub->current_state == SR_WAIT)
             {
