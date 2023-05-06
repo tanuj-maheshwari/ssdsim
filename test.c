@@ -782,8 +782,7 @@ int64_t trace_output(struct ssd_info* ssd){
 
             if(req->response_time-req->begin_time==0)
             {
-                printf("the response time is 0?? \n");
-                getchar();
+                /* printf("the response time is 0?? \n"); */
             }
 
             if (req->operation==READ)
@@ -880,8 +879,7 @@ int64_t trace_output(struct ssd_info* ssd){
 
                 if(end_time-start_time==0)
                 {
-                    printf("the response time is 0?? \n");
-                    getchar();
+                    /* printf("the response time is 0?? \n"); */
                 }
 
                 if (req->operation==READ)
