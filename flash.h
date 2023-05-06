@@ -22,6 +22,7 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #include <stdlib.h>
 #include "pagemap.h"
 
+int subqueue_empty(struct sub_request *subqueue, int operation);
 struct ssd_info *process(struct ssd_info *);
 struct ssd_info *insert2buffer(struct ssd_info *, unsigned int, int, struct sub_request *, struct request *);
 

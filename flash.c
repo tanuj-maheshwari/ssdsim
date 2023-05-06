@@ -2037,6 +2037,26 @@ Status delete_e_sub_request(struct ssd_info *ssd, struct sub_request *sub)
     return SUCCESS;
 }
 
+/**
+ * @brief Checks if the subrequest queue contains any subrequests of the specified operation
+ * @param subqueue The subrequest queue
+ * @param operation The operation
+ * @return 1 if no subrequest, 0 otherwise
+ */
+int subqueue_empty(struct sub_request *subqueue, int operation)
+{
+    struct sub_request *sub = subqueue;
+    while (sub != NULL)
+    {
+        if (sub->operation == operation)
+        {
+            return 0;
+        }
+        sub = sub->next_node;
+    }
+    return 1;
+}
+
 /********************************************************
  *这个函数的主要功能是主控读子请求和写子请求的状态变化处理
  *======================================================
@@ -2076,7 +2096,7 @@ struct ssd_info *process(struct ssd_info *ssd)
     for (i = 0; i < ssd->parameter->channel_number; i++)
     {
         // No need to check for completed erase requests, as they are deleted immediately
-        if ((ssd->channel_head[i].subs_r_head == NULL) && (ssd->channel_head[i].subs_w_head == NULL) && (ssd->subs_w_head == NULL) && (ssd->channel_head[i].subs_e_head == NULL))
+        if (subqueue_empty(ssd->channel_head[i].subs_r_head, READ) && subqueue_empty(ssd->channel_head[i].subs_w_head, WRITE) && subqueue_empty(ssd->subs_w_head, WRITE) && subqueue_empty(ssd->channel_head[i].subs_e_head, ERASE))
         {
             flag = 1;
         }
@@ -2137,27 +2157,30 @@ struct ssd_info *process(struct ssd_info *ssd)
             services_2_r_wait(ssd, i, &flag, &chg_cur_time_flag); /*处理处于等待状态的读子请求 | Handling read child requests in wait state*/
 
             /*if there are no new read request and data is ready in some dies, send these data to controller and response this request*/
-            if ((flag == 0) && (ssd->channel_head[i].subs_r_head != NULL))
+            if ((flag == 0) && (subqueue_empty(ssd->channel_head[i].subs_r_head, READ) == 0))
             {
                 services_2_r_data_trans(ssd, i, &flag, &chg_cur_time_flag);
+            }
+
+            /*Handling erase requests in wait state*/
+            if ((flag == 0) && (subqueue_empty(ssd->channel_head[i].subs_e_head, ERASE) == 0))
+            {
+                services_2_e_wait(ssd, i, &flag, &chg_cur_time_flag);
+            }
+
+            /**
+             * @brief Handling completion of each erase request one by one
+             * Here, as page move is done via an operation similar to copyback, channel is not occupied
+             */
+            if ((flag == 0) && (subqueue_empty(ssd->channel_head[i].subs_e_head, ERASE) == 0))
+            {
+                services_2_e_comp(ssd, i, &flag, &chg_cur_time_flag);
             }
 
             /*if there are no read or erase request to take channel, we can serve write requests*/
             if (flag == 0)
             {
                 services_2_write(ssd, i, &flag, &chg_cur_time_flag);
-            }
-
-            /*Handling erase requests in wait state*/
-            services_2_e_wait(ssd, i, &flag, &chg_cur_time_flag);
-
-            /**
-             * @brief Handling completion of each erase request one by one
-             * Here, as page move is done via an operation similar to copyback, channel is not occupied
-             */
-            if ((flag == 0) && (ssd->channel_head[i].subs_e_head != NULL))
-            {
-                services_2_e_comp(ssd, i, &flag, &chg_cur_time_flag);
             }
         }
     }
