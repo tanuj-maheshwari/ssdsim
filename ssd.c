@@ -12,7 +12,7 @@
 int main(int argc, char *argv[])
 {
     clock_t ssd_start_time, ssd_end_time;
-    ssd_start_time=clock();
+    ssd_start_time = clock();
     unsigned int err;
     struct user_args *uargs;
 
@@ -39,10 +39,10 @@ int main(int argc, char *argv[])
     }
 
     free(uargs);
-    ssd_end_time= clock();
+    ssd_end_time = clock();
     printf("\nThe simulation is completed! \n");
-    double cpu_time_used=((double) (ssd_end_time - ssd_start_time)) / CLOCKS_PER_SEC;
-    printf("The time used for the program is %lf seconds",cpu_time_used);
+    double cpu_time_used = ((double)(ssd_end_time - ssd_start_time)) / CLOCKS_PER_SEC;
+    printf("The time used for the program is %lf seconds", cpu_time_used);
     return 0;
 }
 
@@ -372,6 +372,9 @@ struct ssd_info *simulate(struct ssd_info *ssd)
         // reach end of tracefile, all request already processed
         if (flag == 0 && ssd->request_queue == NULL)
             flag = 100;
+
+        if (flag == 0 && subqueue_empty(ssd->channel_head[0].subs_r_head, READ) && subqueue_empty(ssd->channel_head[0].subs_w_head, WRITE) && subqueue_empty(ssd->subs_w_head, WRITE) && subqueue_empty(ssd->channel_head[0].subs_e_head, ERASE))
+            flag = 100;
     }
 
     fclose(ssd->tracefile);
@@ -416,7 +419,8 @@ int get_requests(struct ssd_info *ssd)
         {
             ssd->simulation_start_time = time_t;
         }
-        if(feof(ssd->tracefile)){
+        if (feof(ssd->tracefile))
+        {
             ssd->simulation_end_time = ssd->current_time;
         }
         // If EOF, continue to process the request queue until empty
@@ -1245,10 +1249,12 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "interleave two plane and one program count: %13lu\n", ssd->inter_mplane_prog_count);
     fprintf(ssd->statisticfile, "interleave two plane count: %13lu\n", ssd->inter_mplane_count);
     fprintf(ssd->statisticfile, "gc copy back count: %13lu\n", ssd->gc_copy_back);
-    if(ssd->num_gc==0){
+    if (ssd->num_gc == 0)
+    {
         fprintf(ssd->statisticfile, "Avg. gc page move: Undefined (No gc page moves)\n");
     }
-    else{
+    else
+    {
         fprintf(ssd->statisticfile, "avg. gc page move: %.2f (%.2f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
     }
     fprintf(ssd->statisticfile, "write flash count: %13lu\n", ssd->write_flash_count);
