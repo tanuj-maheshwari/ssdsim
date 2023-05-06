@@ -1192,8 +1192,11 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->outputfile, "buffer write hits: %13lu\n", ssd->dram->buffer->write_hit);
     fprintf(ssd->outputfile, "buffer write miss: %13lu\n", ssd->dram->buffer->write_miss_hit);
     fprintf(ssd->outputfile, "erase: %13u\n", erase);
-    fprintf(ssd->outputfile, "write amplification: %.2f\n", (double)ssd->program_count / (double)ssd->write_request_count);
-    fprintf(ssd->outputfile, "read amplification: %.2f\n", (double)ssd->read_count / (double)ssd->read_request_count);
+    
+    fprintf(ssd->outputfile, "read amplification: %.4f\n", (double)ssd->read_count / (double)ssd->read_request_count);
+    fprintf(ssd->outputfile, "write amplification: %.4f\n", (double)ssd->program_count / (double)ssd->write_request_count);
+
+
     fflush(ssd->outputfile);
 
     fprintf(ssd->statisticfile, "\n");
@@ -1237,11 +1240,11 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "write sub request count: %13u\n", ssd->write_subreq_count);
     fprintf(ssd->statisticfile, "read subr request count: %13u\n", ssd->read_subreq_count);
     if (ssd->write_request_count != 0)
-        fprintf(ssd->statisticfile, "write amplification: %.2f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
+        fprintf(ssd->statisticfile, "write amplification: %.4f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
     if (ssd->read_request_count != 0)
-        fprintf(ssd->statisticfile, "read amplification: %.2f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
-    fprintf(ssd->statisticfile, "write amplification (size): %.2f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
-    fprintf(ssd->statisticfile, "read amplification (size): %.2f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
+        fprintf(ssd->statisticfile, "read amplification: %.4f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
+    fprintf(ssd->statisticfile, "write amplification (size): %.4f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
+    fprintf(ssd->statisticfile, "read amplification (size): %.4f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
     if(ssd->num_gc==0){
         fprintf(ssd->statisticfile, "Avg. gc page move: Undefined (No gc page moves)\n");
     }
