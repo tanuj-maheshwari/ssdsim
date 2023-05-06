@@ -1255,7 +1255,7 @@ void statistic_output(struct ssd_info *ssd)
     }
     else
     {
-        fprintf(ssd->statisticfile, "avg. gc page move: %.2f (%.2f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
+        fprintf(ssd->statisticfile, "avg. gc page move: %.4f (%.4f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
     }
     fprintf(ssd->statisticfile, "write flash count: %13lu\n", ssd->write_flash_count);
     fprintf(ssd->statisticfile, "waste page count: %13lu\n", ssd->waste_page_count);
@@ -1285,20 +1285,20 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "read subr request count: %13u\n", ssd->read_subreq_count);
     fprintf(ssd->statisticfile, "erase subr request count: %13u\n", ssd->erase_subreq_count);
     if (ssd->write_request_count != 0)
-        fprintf(ssd->statisticfile, "write amplification: %.2f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
+        fprintf(ssd->statisticfile, "write amplification: %.4f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
     else
-        fprintf(ssd->statisticfile, "Write request count is 0");
+        fprintf(ssd->statisticfile, "Write request count is 0\n");
     if (ssd->read_request_count != 0)
-        fprintf(ssd->statisticfile, "read amplification: %.2f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
+        fprintf(ssd->statisticfile, "read amplification: %.4f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
     else
-        fprintf(ssd->statisticfile, "Read request count is 0");
+        fprintf(ssd->statisticfile, "Read request count is 0\n");
     if (ssd->erase_request_count!=0)
-        fprintf(ssd->statisticfile, "erase amplification: %.2f\n", (double)ssd->program_count / (double)ssd->erase_subreq_count);
+        fprintf(ssd->statisticfile, "erase amplification: %.4f\n", (double)ssd->program_count / (double)ssd->erase_subreq_count);
     else
-        fprintf(ssd->statisticfile, "Erase request count is 0");
-    fprintf(ssd->statisticfile, "write amplification (size): %.2f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
-    fprintf(ssd->statisticfile, "read amplification (size): %.2f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
-    fprintf(ssd->statisticfile, "avg. gc page move: %.2f (%.2f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
+        fprintf(ssd->statisticfile, "Erase request count is 0\n");
+    fprintf(ssd->statisticfile, "write amplification (size): %.4f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
+    fprintf(ssd->statisticfile, "read amplification (size): %.4f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
+    fprintf(ssd->statisticfile, "avg. gc page move: %.4f (%.4f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
     fprintf(ssd->statisticfile, "gc time window: %lld\n", ssd->gc_time_window);
     fprintf(ssd->statisticfile, "\n\n pre-process duration: %lld ns\n", ssd->pre_process_time);
     fprintf(ssd->statisticfile, " simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
