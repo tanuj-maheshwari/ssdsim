@@ -259,9 +259,10 @@ int try_insert_request(struct ssd_info *ssd, struct request *req)
     // Calculate average read and write request size
     if (req->operation == READ)
         ssd->ave_read_size=(ssd->ave_read_size*ssd->read_request_count+req->size)/(ssd->read_request_count+1);
-    else
+    else if(req->operation == WRITE)
         ssd->ave_write_size=(ssd->ave_write_size*ssd->write_request_count+req->size)/(ssd->write_request_count+1);
-
+    else if (req->operation == ERASE) 
+        ssd->ave_erase_size=(ssd->ave_erase_size*ssd->erase_request_count+req->size)/(ssd->erase_request_count+1);
     if (req->next_node != NULL)
         ssd->next_request_time = req->next_node->time;
     else
@@ -781,8 +782,7 @@ int64_t trace_output(struct ssd_info* ssd){
 
             if(req->response_time-req->begin_time==0)
             {
-                printf("the response time is 0?? \n");
-                getchar();
+                /* printf("the response time is 0?? \n"); */
             }
 
             if (req->operation==READ)
@@ -790,11 +790,16 @@ int64_t trace_output(struct ssd_info* ssd){
                 ssd->read_request_count++;
                 ssd->read_avg=ssd->read_avg+(req->response_time-req->time);
             } 
-            else
+            else if(req->operation==WRITE)
             {
                 ssd->write_request_count++;
                 ssd->write_avg=ssd->write_avg+(req->response_time-req->time);
             }
+            else if (req->operation == ERASE) {
+                ssd->erase_request_count++;
+                ssd->erase_avg=ssd->erase_avg+(req->response_time-req->time);
+            } 
+                
 
             if(pre_node == NULL)
             {
@@ -874,8 +879,7 @@ int64_t trace_output(struct ssd_info* ssd){
 
                 if(end_time-start_time==0)
                 {
-                    printf("the response time is 0?? \n");
-                    getchar();
+                    /* printf("the response time is 0?? \n"); */
                 }
 
                 if (req->operation==READ)
@@ -883,11 +887,16 @@ int64_t trace_output(struct ssd_info* ssd){
                     ssd->read_request_count++;
                     ssd->read_avg=ssd->read_avg+(end_time-req->time);
                 } 
-                else
+                else if(req->operation==WRITE)
                 {
                     ssd->write_request_count++;
                     ssd->write_avg=ssd->write_avg+(end_time-req->time);
                 }
+                else if (req->operation == ERASE) 
+                {
+                    ssd->erase_request_count++;
+                    ssd->erase_avg=ssd->erase_avg+(end_time-req->time);
+                } 
 
                 while(req->subs!=NULL)
                 {

@@ -22,6 +22,7 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #include <stdlib.h>
 #include "pagemap.h"
 
+int subqueue_empty(struct sub_request *subqueue, int operation);
 struct ssd_info *process(struct ssd_info *);
 struct ssd_info *insert2buffer(struct ssd_info *, unsigned int, int, struct sub_request *, struct request *);
 
@@ -61,5 +62,11 @@ int services_2_write(struct ssd_info *ssd, unsigned int channel, unsigned int *c
 int delete_w_sub_request(struct ssd_info *ssd, unsigned int channel, struct sub_request *sub);
 int copy_back(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, struct sub_request *sub);
 int static_write(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, struct sub_request *sub);
+
+int services_2_e_wait(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag);
+int services_2_e_comp(struct ssd_info *ssd, unsigned int channel, unsigned int *channel_busy_flag, unsigned int *change_current_time_flag);
+int delete_e_sub_request(struct ssd_info *ssd, struct sub_request *sub);
+
+int heuristic_computation(struct ssd_info *ssd, struct sub_request *sub);
 
 #endif

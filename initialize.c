@@ -89,6 +89,10 @@ struct ssd_info *initiation(struct ssd_info *ssd)
     ssd->pre_process_time = 0;
     ssd->current_time = 0;
 
+    // Initialize key program count and block erase count
+    ssd->key_prog_count = 0;
+    ssd->erase_count = 0;
+
     // 初始化 dram | initialize dram
     ssd->dram = (struct dram_info *)malloc(sizeof(struct dram_info));
     alloc_assert(ssd->dram, "ssd->dram");
@@ -217,7 +221,7 @@ struct page_info *initialize_page(struct page_info *p_page)
 {
     p_page->valid_state = 0;
     p_page->free_state = PG_SUB;
-    p_page->lpn = -1;
+    p_page->lpn = 0;
     p_page->written_count = 0;
     return p_page;
 }
@@ -593,6 +597,18 @@ struct parameter_value *load_parameters(char parameter_file[30])
         else if ((res_eql = strcmp(buf, "t_KG")) == 0)
         {
             sscanf(buf + next_eql, "%d", &p->time_characteristics.tKG);
+        }
+        else if ((res_eql = strcmp(buf, "t_HC")) == 0)
+        {
+            sscanf(buf + next_eql, "%d", &p->time_characteristics.tHC);
+        }
+        else if ((res_eql = strcmp(buf, "t_PM")) == 0)
+        {
+            sscanf(buf + next_eql, "%d", &p->time_characteristics.tPM);
+        }
+        else if ((res_eql = strcmp(buf, "erase heuristic")) == 0)
+        {
+            sscanf(buf + next_eql, "%d", &p->ers_heuristic);
         }
         else if ((res_eql = strcmp(buf, "erase limit")) == 0)
         {

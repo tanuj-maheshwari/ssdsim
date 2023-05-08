@@ -47,11 +47,16 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 
 #define READ 1
 #define WRITE 0
+#define ERASE 2
 
 /*********************************all states of each objects************************************************
  *一下定义了channel的空闲，命令地址传输，数据传输，传输，其他等状态
  *还有chip的空闲，写忙，读忙，命令地址传输，数据传输，擦除忙，copyback忙，其他等状态
  *还有读写子请求（sub）的等待，读命令地址传输，读，读数据传输，写命令地址传输，写数据传输，写传输，完成等状态
+
+ * Define the channel's idle, command address transmission, data transmission, transmission, other states
+ * There are also chip idle, write busy, read busy, command address transmission, data transmission, erase busy, copyback busy, other states, etc.
+ *There are also read and write sub-request (sub) waiting, read command address transmission, read, read data transmission, write command address transmission, write data transmission, write transmission, completion and other states
  ************************************************************************************************************/
 
 #define CHANNEL_IDLE 000
@@ -69,6 +74,8 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define CHIP_WAIT 108
 #define CHIP_ERASE_BUSY 109
 #define CHIP_COPYBACK_BUSY 110
+#define CHIP_PAGEMOVE_BUSY 111
+#define CHIP_ERASEOP_WAITING 112
 #define UNKNOWN 111
 
 #define SR_WAIT 200
@@ -78,7 +85,15 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 #define SR_W_C_A_TRANSFER 204
 #define SR_W_DATA_TRANSFER 205
 #define SR_W_TRANSFER 206
+#define SR_E_HC_PM_COMPUTE 207 // Heuristic computation & Page movement
+#define SR_E_ERASE 208         // Actual erase operation performing (key remove or block erase)
+#define SR_E_DISC 209          // Discarded delete requests
 #define SR_COMPLETE 299
+
+#define ERASE_TYPE_KEY 0   // Key is being deleted for erase operation
+#define ERASE_TYPE_BLOCK 1 // Block is being erased for erase operation
+
+#define ERASE_GREEDY 0 // Greedy erase
 
 #define REQUEST_IN 300 // 下一条请求到达的时间
 #define OUTPUT 301     // 下一次数据输出的时间
@@ -168,6 +183,8 @@ struct ac_time_characteristics
     int tWHR;  // WE high to RE low
     int tRST;  // device resetting time
     int tKG;   // key generation time
+    int tHC;   // Heuristic computation time
+    int tPM;   // Page movement time
 } ac_timing;
 
 struct ssd_info
@@ -197,21 +214,26 @@ struct ssd_info
 
     unsigned int write_request_count; // 记录写操作的次数
     unsigned int read_request_count;  // 记录读操作的次数
+    unsigned int erase_request_count; // 记录擦除操作的次数
     int64_t write_avg;                // 记录用于计算写请求平均响应时间的时间
     int64_t read_avg;                 // 记录用于计算读请求平均响应时间的时间
+    int64_t erase_avg;                // 记录用于计算擦除请求平均响应时间的时间
 
     unsigned int write_request_size; // total write size in bytes
     unsigned int read_request_size;  // total read size in bytes
+    unsigned int erase_request_size; // total erase size in bytes
     unsigned int in_program_size;    // total internal write (program) size in bytes
     unsigned int in_read_size;       // total internal read size in bytes
     unsigned int write_subreq_count;
     unsigned int read_subreq_count;
+    unsigned int erase_subreq_count;
     unsigned int gc_move_page;
 
     unsigned int min_lsn;
     unsigned int max_lsn;
     unsigned long read_count;
     unsigned long program_count;
+    unsigned long key_prog_count; // Number of times key pages are programmed
     unsigned long erase_count;
     unsigned long direct_erase_count;
     unsigned long copy_back_count;
@@ -230,6 +252,7 @@ struct ssd_info
     unsigned long waste_page_count;  // 记录因为高级命令的限制导致的页浪费 | Recording page waste due to limitations of advanced commands
     float ave_read_size;
     float ave_write_size;
+    float ave_erase_size;
     unsigned int request_queue_length;
     unsigned int update_read_count; // 记录因为更新操作导致的额外读出操作 | Record additional read operations due to update operations
 
@@ -256,9 +279,11 @@ struct ssd_info
     struct dram_info *dram;
     struct request *request_queue;   // dynamic request queue
     struct request *request_tail;    // the tail of the request queue
-    struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上
+    struct sub_request *subs_w_head; // 当采用全动态分配时，分配是不知道应该挂载哪个channel上，所以先挂在ssd上，等进入process函数时才挂到相应的channel的读请求队列上 | When using full dynamic allocation, the allocation does not know which channel should be mounted, so first hang on the ssd, and then hang on the read request queue of the corresponding channel when entering the process function
     struct sub_request *subs_w_tail;
-    struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间
+    struct sub_request *subs_e_c_head; // Erase subrequests which are already completed (because of invalidity of page) are hanged on this queue
+    struct sub_request *subs_e_c_tail;
+    struct event_node *event;          // 事件队列，每产生一个新的事件，按照时间顺序加到这个队列，在simulate函数最后，根据这个队列队首的时间，确定时间 | Event queue, each time a new event is generated, it is added to this queue in chronological order, and at the end of the simulate function, the time is determined according to the time at the head of this queue
     struct channel_info *channel_head; // 指向channel结构体数组的首地址
 };
 
@@ -280,6 +305,8 @@ struct channel_info
     struct sub_request *subs_r_tail; // At the end of the reading request queue on Channel, the newly -entered sub -request is added to the end of the team
     struct sub_request *subs_w_head; // The write request queue head on the channel, the sub-request at the queue head is served first
     struct sub_request *subs_w_tail; // The write request queue on the channel, the newly added sub-request is added to the end of the queue
+    struct sub_request *subs_e_head; // The erase request queue head on the channel, the sub-request at the queue head is served first
+    struct sub_request *subs_e_tail; // The erase request queue on the channel, the newly added sub-request is added to the end of the queue
     struct gc_operation *gc_command; // Record where gc needs to be generated
     struct chip_info *chip_head;
 };
@@ -435,6 +462,9 @@ struct sub_request
 
     unsigned int key_generated_flag; // Indicates whether a key was generated for this subrequest. Only write requests need to generate keys, and read requests do not need to generate keys.
 
+    unsigned int num_pages_move; // The number of pages that need to be moved when an erase subrequest is processed.
+    unsigned int erase_type;     // Weather key is deleted or block is erased.
+
     int64_t begin_time;    // Subrequest start time
     int64_t complete_time; // Record the processing time of the sub-request, that is, the time when the data is actually written or read
 
@@ -516,7 +546,8 @@ struct parameter_value
     int greed_MPW_ad; // 0 don't use multi-plane write advanced commands greedily; 1 use multi-plane write advanced commands greedily
     int aged;         // 1 means that you need to turn this SSD into aged, 0 means that you need to keep this SSD NON-AGED
     float aged_ratio;
-    int queue_length; // 请求队列的长度限制
+    int queue_length;  // 请求队列的长度限制
+    int ers_heuristic; // Erase heuristic type to be used, 0 means GREEDY
 
     struct ac_time_characteristics time_characteristics;
 };

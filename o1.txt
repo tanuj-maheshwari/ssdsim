@@ -1,0 +1,48 @@
+
+               _     _             
+              | |   (_)            
+   ___ ___  __| |___ _ _ __ ___    
+  / __/ __|/ _` / __| | '_ ` _ \   
+  \__ \__ \ (_| \__ \ | | | | | |  
+  |___/___/\__,_|___/_|_| |_| |_|  
+                                   
+  SSD internal simulation tool,
+  created by Yang Hu, v.2.0. Modified by Fadhil Kurnia 
+
+finish initialize ssd
+initiation is completed!
+finish ssd initiation (prepare inner structure)
+
+begin pre_process_page.................
+full page 15 4 
+largest lsn : 105335192
+
+pre_process is complete!
+0,0,0,0:  1044876
+
+
+Begin simulating ... ... ... ...
+  -parameter file: page.parameters
+  -trace file    : tracefile/new/wdev_1.revised.txt
+
+
+   ^o^    OK, please wait a moment, and enjoy music and coffee   ^o^    
+
+GC processes log: page/plane = 4179968
+cnl 	chp 	die 	pln	frpg(%)	 mvd_pg		start(ns)	  end(ns)	 time(ns)
+gc-disk-0:  0  0  0  0  29.00   14        436327870        437789799        442308299      4518500
+gc-disk-0:  0  1  0  0  29.00   14        437789799        442572514        447091014      4518500
+gc-disk-0:  0  2  0  0  29.00   21        442572514        447355229        454132979      6777750
+gc-disk-0:  0  3  0  0  29.00   21        447355229        454397194        461174944      6777750
+gc-disk-0:  0  4  0  0  29.00   22        454397194        461439159        468539659      7100500
+gc-disk-0:  0  5  0  0  29.00   22        461439159        468803874        475904374      7100500
+gc-disk-0:  0  6  0  0  29.00   17        468803874        476168589        481655339      5486750
+gc-disk-0:  0  7  0  0  29.00   17        476168589        481919554        487406304      5486750
+ pre-process duration: 0 ns
+ simulation duration: 2563045385 ns
+ IOPS: 1100.254
+ read BW: 0.000 MB/s
+ write BW: 2.083 MB/s
+
+The simulation is completed! 
+The time used for the program is 3.561767 seconds

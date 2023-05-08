@@ -502,7 +502,7 @@ int raid_ssd_get_requests(int disk_id, struct ssd_info *ssd, struct raid_info *r
     req_size = rsreq->size;
     req_ope = rsreq->operation;
 
-    if (req_device < 0 || req_size < 0 || req_lsn < 0 || !(req_ope == WRITE || req_ope == READ)) {
+    if (req_device < 0 || req_size < 0 || req_lsn < 0 || !(req_ope == WRITE || req_ope == READ || req_ope == ERASE)) {
         printf("Error! wrong io request from raid controller\n");
         exit(100);
     }
@@ -566,6 +566,7 @@ int raid_ssd_get_requests(int disk_id, struct ssd_info *ssd, struct raid_info *r
     if (ssd_request->lsn < ssd->min_lsn) ssd->min_lsn = ssd_request->lsn;
     if (ssd_request->operation == WRITE) ssd->ave_write_size=(ssd->ave_write_size*ssd->write_request_count+ssd_request->size)/(ssd->write_request_count+1);
     if (ssd_request->operation == READ) ssd->ave_read_size=(ssd->ave_read_size*ssd->read_request_count+ssd_request->size)/(ssd->read_request_count+1);
+    if (ssd_request->operation == ERASE) ssd->ave_erase_size=(ssd->ave_erase_size*ssd->erase_request_count+ssd_request->size)/(ssd->erase_request_count+1);
 
     return 1;
 }
@@ -635,6 +636,7 @@ int raid_ssd_interface(struct ssd_info* ssd, struct raid_sub_request *subreq) {
     if (ssd_request->lsn < ssd->min_lsn) ssd->min_lsn = ssd_request->lsn;
     if (ssd_request->operation == WRITE) ssd->ave_write_size=(ssd->ave_write_size*ssd->write_request_count+ssd_request->size)/(ssd->write_request_count+1);
     if (ssd_request->operation == READ) ssd->ave_read_size=(ssd->ave_read_size*ssd->read_request_count+ssd_request->size)/(ssd->read_request_count+1);
+    if (ssd_request->operation == ERASE) ssd->ave_erase_size=(ssd->ave_erase_size*ssd->erase_request_count+ssd_request->size)/(ssd->erase_request_count+1);
 
     return SUCCESS;
 }

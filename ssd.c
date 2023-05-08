@@ -5,11 +5,14 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "ssd.h"
 #include "raid.h"
 
 int main(int argc, char *argv[])
 {
+    clock_t ssd_start_time, ssd_end_time;
+    ssd_start_time = clock();
     unsigned int err;
     struct user_args *uargs;
 
@@ -36,8 +39,10 @@ int main(int argc, char *argv[])
     }
 
     free(uargs);
+    ssd_end_time = clock();
     printf("\nThe simulation is completed! \n");
-
+    double cpu_time_used = ((double)(ssd_end_time - ssd_start_time)) / CLOCKS_PER_SEC;
+    printf("The time used for the program is %lf seconds", cpu_time_used);
     return 0;
 }
 
@@ -367,6 +372,9 @@ struct ssd_info *simulate(struct ssd_info *ssd)
         // reach end of tracefile, all request already processed
         if (flag == 0 && ssd->request_queue == NULL)
             flag = 100;
+
+        if (flag == 0 && subqueue_empty(ssd->channel_head[0].subs_r_head, READ) && subqueue_empty(ssd->channel_head[0].subs_w_head, WRITE) && subqueue_empty(ssd->subs_w_head, WRITE) && subqueue_empty(ssd->channel_head[0].subs_e_head, ERASE))
+            flag = 100;
     }
 
     fclose(ssd->tracefile);
@@ -411,7 +419,10 @@ int get_requests(struct ssd_info *ssd)
         {
             ssd->simulation_start_time = time_t;
         }
-
+        if (feof(ssd->tracefile))
+        {
+            ssd->simulation_end_time = ssd->current_time;
+        }
         // If EOF, continue to process the request queue until empty
     }
     else
@@ -529,10 +540,15 @@ int get_requests(struct ssd_info *ssd)
         ssd->ave_read_size = (ssd->ave_read_size * ssd->read_request_count + request1->size) / (ssd->read_request_count + 1);
         ssd->read_request_size += request1->size;
     }
-    else
+    else if (request1->operation == WRITE)
     {
         ssd->ave_write_size = (ssd->ave_write_size * ssd->write_request_count + request1->size) / (ssd->write_request_count + 1);
         ssd->write_request_size += request1->size;
+    }
+    else if (request1->operation == ERASE)
+    {
+        ssd->ave_erase_size = (ssd->ave_erase_size * ssd->erase_request_count + request1->size) / (ssd->erase_request_count + 1);
+        ssd->erase_request_size += request1->size;
     }
 
     filepoint = ftell(ssd->tracefile);
@@ -848,8 +864,8 @@ void trace_output(struct ssd_info *ssd)
 
             if (req->response_time - req->begin_time == 0)
             {
-                printf("the response time is 0?? \n");
-                getchar();
+                /* printf("the response time is 0?? \n"); */
+
             }
 
             if (req->operation == READ)
@@ -857,10 +873,15 @@ void trace_output(struct ssd_info *ssd)
                 ssd->read_request_count++;
                 ssd->read_avg = ssd->read_avg + (req->response_time - req->time);
             }
-            else
+            else if (req->operation == WRITE)
             {
                 ssd->write_request_count++;
                 ssd->write_avg = ssd->write_avg + (req->response_time - req->time);
+            }
+            else if (req->operation == ERASE)
+            {
+                ssd->erase_request_count++;
+                ssd->erase_avg = ssd->erase_avg + (req->response_time - req->time);
             }
 
             if (pre_node == NULL)
@@ -953,8 +974,8 @@ void trace_output(struct ssd_info *ssd)
 
                 if (end_time - start_time == 0)
                 {
-                    printf("the response time is 0?? \n");
-                    getchar();
+                    /* printf("the response time is 0?? \n"); */
+
                 }
 
                 if (req->operation == READ)
@@ -962,10 +983,15 @@ void trace_output(struct ssd_info *ssd)
                     ssd->read_request_count++;
                     ssd->read_avg = ssd->read_avg + (end_time - req->time);
                 }
-                else
+                else if (req->operation == WRITE)
                 {
                     ssd->write_request_count++;
                     ssd->write_avg = ssd->write_avg + (end_time - req->time);
+                }
+                else if (req->operation == ERASE)
+                {
+                    ssd->erase_request_count++;
+                    ssd->erase_avg = ssd->erase_avg + (end_time - req->time);
                 }
 
                 while (req->subs != NULL)
@@ -1167,7 +1193,8 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->outputfile, "program count: %13lu", ssd->program_count);
     fprintf(ssd->outputfile, "                        include the flash write count leaded by read requests\n");
     fprintf(ssd->outputfile, "the read operation leaded by un-covered update count: %13d\n", ssd->update_read_count);
-    fprintf(ssd->outputfile, "erase count: %13lu\n", ssd->erase_count);
+    fprintf(ssd->outputfile, "key program count: %13lu\n", ssd->key_prog_count);
+    fprintf(ssd->outputfile, "block erase count: %13lu\n", ssd->erase_count);
     fprintf(ssd->outputfile, "direct erase count: %13lu\n", ssd->direct_erase_count);
     fprintf(ssd->outputfile, "copy back count: %13lu\n", ssd->copy_back_count);
     fprintf(ssd->outputfile, "multi-plane program count: %13lu\n", ssd->m_plane_prog_count);
@@ -1183,12 +1210,16 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->outputfile, "interleave multiple plane erase count: %13lu\n", ssd->interleave_mplane_erase_count);
     fprintf(ssd->outputfile, "read request count: %13u\n", ssd->read_request_count);
     fprintf(ssd->outputfile, "write request count: %13u\n", ssd->write_request_count);
+    fprintf(ssd->outputfile, "erase request count: %13u\n", ssd->erase_request_count);
     fprintf(ssd->outputfile, "read request average size: %13f\n", ssd->ave_read_size);
     fprintf(ssd->outputfile, "write request average size: %13f\n", ssd->ave_write_size);
+    fprintf(ssd->outputfile, "erase request average size: %13f\n", ssd->ave_erase_size);
     if (ssd->read_request_count != 0)
         fprintf(ssd->outputfile, "read request average response time: %lld\n", ssd->read_avg / ssd->read_request_count);
     if (ssd->write_request_count != 0)
         fprintf(ssd->outputfile, "write request average response time: %lld\n", ssd->write_avg / ssd->write_request_count);
+    if (ssd->erase_request_count != 0)
+        fprintf(ssd->outputfile, "erase request average response time: %lld\n", ssd->erase_avg / ssd->erase_request_count);
     fprintf(ssd->outputfile, "buffer read hits: %13lu\n", ssd->dram->buffer->read_hit);
     fprintf(ssd->outputfile, "buffer read miss: %13lu\n", ssd->dram->buffer->read_miss_hit);
     fprintf(ssd->outputfile, "buffer write hits: %13lu\n", ssd->dram->buffer->write_hit);
@@ -1207,7 +1238,8 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "program count: %13lu", ssd->program_count);
     fprintf(ssd->statisticfile, "                        include the flash write count leaded by read requests\n");
     fprintf(ssd->statisticfile, "the read operation leaded by un-covered update count: %13u\n", ssd->update_read_count);
-    fprintf(ssd->statisticfile, "erase count: %13lu\n", ssd->erase_count);
+    fprintf(ssd->statisticfile, "key program count: %13lu\n", ssd->key_prog_count);
+    fprintf(ssd->statisticfile, "block erase count: %13lu\n", ssd->erase_count);
     fprintf(ssd->statisticfile, "direct erase count: %13lu\n", ssd->direct_erase_count);
     fprintf(ssd->statisticfile, "copy back count: %13lu\n", ssd->copy_back_count);
     fprintf(ssd->statisticfile, "multi-plane program count: %13lu\n", ssd->m_plane_prog_count);
@@ -1217,7 +1249,14 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "interleave two plane and one program count: %13lu\n", ssd->inter_mplane_prog_count);
     fprintf(ssd->statisticfile, "interleave two plane count: %13lu\n", ssd->inter_mplane_count);
     fprintf(ssd->statisticfile, "gc copy back count: %13lu\n", ssd->gc_copy_back);
-    fprintf(ssd->statisticfile, "gc count: %13lu\n", ssd->num_gc);
+    if (ssd->num_gc == 0)
+    {
+        fprintf(ssd->statisticfile, "Avg. gc page move: Undefined (No gc page moves)\n");
+    }
+    else
+    {
+        fprintf(ssd->statisticfile, "avg. gc page move: %.4f (%.4f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
+    }
     fprintf(ssd->statisticfile, "write flash count: %13lu\n", ssd->write_flash_count);
     fprintf(ssd->statisticfile, "waste page count: %13lu\n", ssd->waste_page_count);
     fprintf(ssd->statisticfile, "interleave erase count: %13lu\n", ssd->interleave_erase_count);
@@ -1225,39 +1264,60 @@ void statistic_output(struct ssd_info *ssd)
     fprintf(ssd->statisticfile, "interleave multiple plane erase count: %13lu\n", ssd->interleave_mplane_erase_count);
     fprintf(ssd->statisticfile, "read request count: %13u\n", ssd->read_request_count);
     fprintf(ssd->statisticfile, "write request count: %13u\n", ssd->write_request_count);
+    fprintf(ssd->statisticfile, "erase request count: %13u\n", ssd->erase_request_count);
     fprintf(ssd->statisticfile, "read request average size: %13f\n", ssd->ave_read_size);
     fprintf(ssd->statisticfile, "write request average size: %13f\n", ssd->ave_write_size);
+    fprintf(ssd->statisticfile, "erase request average size: %13f\n", ssd->ave_erase_size);
     if (ssd->read_request_count != 0)
         fprintf(ssd->statisticfile, "read request average response time: %lld\n", ssd->read_avg / ssd->read_request_count);
     if (ssd->write_request_count != 0)
         fprintf(ssd->statisticfile, "write request average response time: %lld\n", ssd->write_avg / ssd->write_request_count);
+    if (ssd->erase_request_count != 0)
+        fprintf(ssd->statisticfile, "erase request average response time: %lld\n", ssd->erase_avg / ssd->erase_request_count);
     fprintf(ssd->statisticfile, "buffer read hits: %13lu\n", ssd->dram->buffer->read_hit);
     fprintf(ssd->statisticfile, "buffer read miss: %13lu\n", ssd->dram->buffer->read_miss_hit);
     fprintf(ssd->statisticfile, "buffer write hits: %13lu\n", ssd->dram->buffer->write_hit);
     fprintf(ssd->statisticfile, "buffer write miss: %13lu\n", ssd->dram->buffer->write_miss_hit);
+    /* fprintf(ssd->statisticfile, "buffer erase hits: %13lu\n", ssd->dram->buffer->erase_hits);
+    fprintf(ssd->statisticfile, "buffer erase miss: %13lu\n", ssd->dram->buffer->erase_miss_hit); */
     fprintf(ssd->statisticfile, "erase: %13u\n", erase);
     fprintf(ssd->statisticfile, "write sub request count: %13u\n", ssd->write_subreq_count);
     fprintf(ssd->statisticfile, "read subr request count: %13u\n", ssd->read_subreq_count);
+    fprintf(ssd->statisticfile, "erase subr request count: %13u\n", ssd->erase_subreq_count);
     if (ssd->write_request_count != 0)
-        fprintf(ssd->statisticfile, "write amplification: %.2f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
+        fprintf(ssd->statisticfile, "write amplification: %.4f\n", (double)ssd->program_count / (double)ssd->write_subreq_count);
+    else
+        fprintf(ssd->statisticfile, "Write request count is 0\n");
     if (ssd->read_request_count != 0)
-        fprintf(ssd->statisticfile, "read amplification: %.2f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
-    fprintf(ssd->statisticfile, "write amplification (size): %.2f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
-    fprintf(ssd->statisticfile, "read amplification (size): %.2f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
-    fprintf(ssd->statisticfile, "avg. gc page move: %.2f (%.2f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
+        fprintf(ssd->statisticfile, "read amplification: %.4f\n", (double)ssd->read_count / (double)ssd->read_subreq_count);
+    else
+        fprintf(ssd->statisticfile, "Read request count is 0\n");
+    if (ssd->erase_request_count!=0)
+        fprintf(ssd->statisticfile, "erase amplification: %.4f\n", (double)ssd->program_count / (double)ssd->erase_subreq_count);
+    else
+        fprintf(ssd->statisticfile, "Erase request count is 0\n");
+    fprintf(ssd->statisticfile, "write amplification (size): %.4f\n", (double)ssd->in_program_size / (double)ssd->write_request_size);
+    fprintf(ssd->statisticfile, "read amplification (size): %.4f\n", (double)ssd->in_read_size / (double)ssd->read_request_size);
+    fprintf(ssd->statisticfile, "avg. gc page move: %.4f (%.4f%%)\n", (double)ssd->gc_move_page / (double)ssd->num_gc, (100 * ((double)ssd->gc_move_page / (double)ssd->num_gc) / ssd->parameter->page_block));
     fprintf(ssd->statisticfile, "gc time window: %lld\n", ssd->gc_time_window);
     fprintf(ssd->statisticfile, "\n\n pre-process duration: %lld ns\n", ssd->pre_process_time);
     fprintf(ssd->statisticfile, " simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
     fprintf(ssd->statisticfile, " IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+
     fprintf(ssd->statisticfile, " read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fprintf(ssd->statisticfile, " write BW: %.3f MB/s\n", ((double)ssd->write_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+    fprintf(ssd->statisticfile, " erase BW: %.3f MB/s\n", ((double)ssd->erase_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     fflush(ssd->statisticfile);
 
     printf(" pre-process duration: %lld ns\n", ssd->pre_process_time);
     printf(" simulation duration: %lld ns\n", ssd->simulation_end_time - ssd->simulation_start_time);
     printf(" IOPS: %.3f\n", (double)(ssd->read_count + ssd->program_count) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+
     printf(" read BW: %.3f MB/s\n", ((double)ssd->read_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
     printf(" write BW: %.3f MB/s\n", ((double)ssd->write_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+    printf(" erase BW: %.3f MB/s\n", ((double)ssd->erase_request_size / 2000.0) / ((double)(ssd->simulation_end_time - ssd->simulation_start_time) / 1000000000));
+
+    printf(" Queue length %llu\n",ssd->request_queue_length);
 }
 
 /***********************************************************************************
@@ -1520,7 +1580,7 @@ struct ssd_info *warmup(struct ssd_info *ssd)
 /*********************************************************************************************
  *no_buffer_distribute()函数是处理当ssd没有dram的时候，
  *这是读写请求就不必再需要在buffer里面寻找，直接利用creat_sub_request()函数创建子请求，再处理。
- *The no_buffer_distribute() function is used when ssd has no dram. This is a read/write request.
+ *The no_buffer_distribute() function is used when ssd has no dram. This is a read/write/erase request.
  *You don't need to look in the buffer. You can use the creat_sub_request() function to create
  *a subrequest and then process it.
  *********************************************************************************************/
@@ -1574,6 +1634,16 @@ struct ssd_info *no_buffer_distribute(struct ssd_info *ssd)
             sub_size = size(state);
 
             sub = creat_sub_request(ssd, lpn, sub_size, state, req, req->operation);
+            lpn++;
+        }
+    }
+    else if (req->operation == ERASE)
+    {
+        while (lpn <= last_lpn)
+        {
+            sub_state = (ssd->dram->map->map_entry[lpn].state & 0x7fffffff);
+            sub_size = size(sub_state);
+            sub = creat_sub_request(ssd, lpn, sub_size, sub_state, req, req->operation);
             lpn++;
         }
     }
